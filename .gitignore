@@ -1,4 +1,4 @@
 .DS_Store
-metastore_db
 derby.log
-target
+/target/
+/metastore_db/
