@@ -2,3 +2,5 @@
 derby.log
 /target/
 /metastore_db/
+/.idea/
+*.iml
