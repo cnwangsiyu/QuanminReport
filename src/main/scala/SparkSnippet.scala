@@ -31,6 +31,7 @@ object SparkSnippet {
 
     var attachmentStringsToSend: scala.collection.mutable.Map[String, String] = scala.collection.mutable.Map[String, String]()
     var tmpString: String = ""
+
     def getDeviceName(id: Long): String = {
       id match {
         case 1 => "Android"
@@ -43,42 +44,42 @@ object SparkSnippet {
     tmpString = "cdn运营商, 终端类型, 卡顿总次数, 总请求数, 卡顿次数比率\n"
     sqlContext.sql("SELECT v1 AS cdn, platform, sum(v4) AS lag_count, count(v4) AS total_count, sum(v4)/count(v4) AS lag_ratio FROM quanmin WHERE (tag='monitor' AND v1!='') GROUP BY v1, platform ORDER BY cdn, platform").
       collect().foreach((row: Row) => {
-      tmpString += "%s, %s, %d, %d, %f\n".format(row.getString(0), getDeviceName(row.getLong(1)), row.getLong(2),row.getLong(3), row.getDouble(4))
+      tmpString += "%s, %s, %d, %d, %f\n".format(row.getString(0), getDeviceName(row.getLong(1)), row.getLong(2), row.getLong(3), row.getDouble(4))
     })
     attachmentStringsToSend.update("[%s]全天卡顿次数比率".format(yesterday), tmpString)
 
     tmpString = "cdn运营商, 终端类型, 卡顿人数, 观看人数, 卡顿人数比率\n"
     sqlContext.sql("SELECT cdn, platform, sum(lag) AS lag_person, count(lag) AS total_person, sum(lag)/count(lag) AS lag_ratio FROM (SELECT v1 AS cdn, platform, uid, myOrAgg(v4) AS lag FROM quanmin WHERE (tag='monitor' AND v1!='') GROUP BY v1, platform, uid) lag_by_uid GROUP BY cdn, platform ORDER BY cdn, platform").
       collect().foreach((row: Row) => {
-      tmpString += "%s, %s, %d, %d, %f\n".format(row.getString(0), getDeviceName(row.getLong(1)), row.getLong(2),row.getLong(3), row.getDouble(4))
+      tmpString += "%s, %s, %d, %d, %f\n".format(row.getString(0), getDeviceName(row.getLong(1)), row.getLong(2), row.getLong(3), row.getDouble(4))
     })
     attachmentStringsToSend.update("[%s]全天卡顿人数比率".format(yesterday), tmpString)
 
     tmpString = "cdn运营商, 终端类型, 卡顿总次数, 总请求数, 卡顿次数比率\n"
     sqlContext.sql("SELECT cdn, platform, sum(lag) AS lag_person, count(lag) AS total_person, sum(lag)/count(lag) AS lag_ratio FROM (SELECT v1 AS cdn, platform, uid, myOrAgg(v4) AS lag FROM quanmin WHERE (tag='monitor' AND v1!='' AND hour(time)>=19) GROUP BY v1, platform, uid) lag_by_uid GROUP BY cdn, platform ORDER BY cdn, platform").
       collect().foreach((row: Row) => {
-      tmpString += "%s, %s, %d, %d, %f\n".format(row.getString(0), getDeviceName(row.getLong(1)), row.getLong(2),row.getLong(3), row.getDouble(4))
+      tmpString += "%s, %s, %d, %d, %f\n".format(row.getString(0), getDeviceName(row.getLong(1)), row.getLong(2), row.getLong(3), row.getDouble(4))
     })
     attachmentStringsToSend.update("[%s]晚高峰卡顿次数比率".format(yesterday), tmpString)
 
     tmpString = "cdn运营商, 终端类型, 卡顿人数, 观看人数, 卡顿人数比率\n"
     sqlContext.sql("SELECT cdn, platform, sum(lag) AS lag_person, count(lag) AS total_person, sum(lag)/count(lag) AS lag_ratio FROM (SELECT v1 AS cdn, platform, uid, myOrAgg(v4) AS lag FROM quanmin WHERE (tag='monitor' AND v1!='' AND hour(time)>=19) GROUP BY v1, platform, uid) lag_by_uid GROUP BY cdn, platform ORDER BY cdn, platform").
       collect().foreach((row: Row) => {
-      tmpString += "%s, %s, %d, %d, %f\n".format(row.getString(0), getDeviceName(row.getLong(1)), row.getLong(2),row.getLong(3), row.getDouble(4))
+      tmpString += "%s, %s, %d, %d, %f\n".format(row.getString(0), getDeviceName(row.getLong(1)), row.getLong(2), row.getLong(3), row.getDouble(4))
     })
     attachmentStringsToSend.update("[%s]晚高峰卡顿人数比率".format(yesterday), tmpString)
 
     tmpString = "省份, cdn运营商, isp, 卡顿人数, 观看人数, 卡顿人数比率\n"
     sqlContext.sql("SELECT province, cdn, isp, sum(lag) AS lag_person, count(lag) AS total_person, sum(lag)/count(lag) AS lag_ratio FROM (SELECT province, v1 AS cdn, isp, uid, myOrAgg(v4) AS lag FROM quanmin WHERE (tag='monitor' AND v1!='') GROUP BY province, v1, isp, uid) lag_by_uid GROUP BY province, cdn, isp ORDER BY lag_person DESC LIMIT 5").
       collect().foreach((row: Row) => {
-      tmpString += "%s, %s, %s, %d, %d, %f\n".format(row.getString(0), row.getString(1), row.getString(2), row.getLong(3),row.getLong(4), row.getDouble(5))
+      tmpString += "%s, %s, %s, %d, %d, %f\n".format(row.getString(0), row.getString(1), row.getString(2), row.getLong(3), row.getLong(4), row.getDouble(5))
     })
     attachmentStringsToSend.update("[%s]省份卡顿用户数top5".format(yesterday), tmpString)
 
     tmpString = "cdn运营商, cdn_ip, 卡顿总次数, 总请求数, 卡顿次数比率\n"
     sqlContext.sql("SELECT v1 AS cdn, v2 AS cdn_ip, sum(v4) AS lag_count, count(v4) AS total_count, sum(v4)/count(v4) AS lag_ratio FROM quanmin WHERE (tag='monitor' AND v1!='' AND v2!='') GROUP BY v1, v2 ORDER BY lag_count DESC LIMIT 10").
       collect().foreach((row: Row) => {
-      tmpString += "%s, %s, %d, %d, %f\n".format(row.getString(0), row.getString(1), row.getLong(2),row.getLong(3), row.getDouble(4))
+      tmpString += "%s, %s, %d, %d, %f\n".format(row.getString(0), row.getString(1), row.getLong(2), row.getLong(3), row.getDouble(4))
     })
     attachmentStringsToSend.update("[%s]卡顿cdn_ip下行节点卡顿top10\n".format(yesterday), tmpString)
 
