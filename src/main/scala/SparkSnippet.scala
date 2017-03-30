@@ -35,8 +35,10 @@ object SparkSnippet {
     def getDeviceName(id: Long): String = {
       id match {
         case 1 => "Android"
-        case 5 => "Web"
-        case 14 => "iOS"
+        case 2 => "iOS"
+        case 5 => "PC"
+        case 9 => "H5"
+        case 14 => "PC新秀"
         case _ => "其他"
       }
     }
