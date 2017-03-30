@@ -41,45 +41,64 @@ object SparkSnippet {
       }
     }
 
-    tmpString = "cdn运营商, 终端类型, 卡顿总次数, 总请求数, 卡顿次数比率\n"
-    sqlContext.sql("SELECT v1 AS cdn, platform, sum(v4) AS lag_count, count(v4) AS total_count, sum(v4)/count(v4) AS lag_ratio FROM quanmin WHERE (tag='monitor' AND v1!='') GROUP BY v1, platform ORDER BY cdn, platform").
+    tmpString = "序号, cdn运营商, 终端类型, 卡顿总次数, 总请求数, 卡顿次数比率\n"
+    sqlContext.sql("SELECT row_number() OVER (ORDER BY v1, platform) AS row_num, v1 AS cdn, platform, sum(v4) AS lag_count, count(v4) AS total_count, sum(v4)/count(v4) AS lag_ratio FROM quanmin WHERE (tag='monitor' AND v1!='') GROUP BY v1, platform").
       collect().foreach((row: Row) => {
-      tmpString += "%s, %s, %d, %d, %f\n".format(row.getString(0), getDeviceName(row.getLong(1)), row.getLong(2), row.getLong(3), row.getDouble(4))
+      tmpString += "%d, %s, %s, %d, %d, %f\n".format(row.getInt(0), row.getString(1), getDeviceName(row.getLong(2)), row.getLong(3), row.getLong(4), row.getDouble(5))
     })
     attachmentStringsToSend.update("[%s]全天卡顿次数比率".format(yesterday), tmpString)
 
-    tmpString = "cdn运营商, 终端类型, 卡顿人数, 观看人数, 卡顿人数比率\n"
-    sqlContext.sql("SELECT cdn, platform, sum(lag) AS lag_person, count(lag) AS total_person, sum(lag)/count(lag) AS lag_ratio FROM (SELECT v1 AS cdn, platform, uid, myOrAgg(v4) AS lag FROM quanmin WHERE (tag='monitor' AND v1!='') GROUP BY v1, platform, uid) lag_by_uid GROUP BY cdn, platform ORDER BY cdn, platform").
+    tmpString = "序号, cdn运营商, 终端类型, 卡顿人数, 观看人数, 卡顿人数比率\n"
+    sqlContext.sql("SELECT row_number() OVER (ORDER BY cdn, platform) AS row_num, cdn, platform, sum(lag) AS lag_person, count(lag) AS total_person, sum(lag)/count(lag) AS lag_ratio FROM (SELECT v1 AS cdn, platform, uid, myOrAgg(v4) AS lag FROM quanmin WHERE (tag='monitor' AND v1!='') GROUP BY v1, platform, uid) lag_by_uid GROUP BY cdn, platform").
       collect().foreach((row: Row) => {
-      tmpString += "%s, %s, %d, %d, %f\n".format(row.getString(0), getDeviceName(row.getLong(1)), row.getLong(2), row.getLong(3), row.getDouble(4))
+      tmpString += "%d, %s, %s, %d, %d, %f\n".format(row.getInt(0), row.getString(1), getDeviceName(row.getLong(2)), row.getLong(3), row.getLong(4), row.getDouble(5))
     })
     attachmentStringsToSend.update("[%s]全天卡顿人数比率".format(yesterday), tmpString)
 
-    tmpString = "cdn运营商, 终端类型, 卡顿总次数, 总请求数, 卡顿次数比率\n"
-    sqlContext.sql("SELECT cdn, platform, sum(lag) AS lag_person, count(lag) AS total_person, sum(lag)/count(lag) AS lag_ratio FROM (SELECT v1 AS cdn, platform, uid, myOrAgg(v4) AS lag FROM quanmin WHERE (tag='monitor' AND v1!='' AND hour(time)>=19) GROUP BY v1, platform, uid) lag_by_uid GROUP BY cdn, platform ORDER BY cdn, platform").
+    tmpString = "序号, cdn运营商, 终端类型, 卡顿总次数, 总请求数, 卡顿次数比率\n"
+    sqlContext.sql("SELECT row_number() OVER (ORDER BY v1, platform) AS row_num, v1 AS cdn, platform, sum(v4) AS lag_count, count(v4) AS total_count, sum(v4)/count(v4) AS lag_ratio FROM quanmin WHERE (tag='monitor' AND v1!='' AND hour(time)>=19) GROUP BY v1, platform").
       collect().foreach((row: Row) => {
-      tmpString += "%s, %s, %d, %d, %f\n".format(row.getString(0), getDeviceName(row.getLong(1)), row.getLong(2), row.getLong(3), row.getDouble(4))
+      tmpString += "%d, %s, %s, %d, %d, %f\n".format(row.getInt(0), row.getString(1), getDeviceName(row.getLong(2)), row.getLong(3), row.getLong(4), row.getDouble(5))
     })
     attachmentStringsToSend.update("[%s]晚高峰卡顿次数比率".format(yesterday), tmpString)
 
-    tmpString = "cdn运营商, 终端类型, 卡顿人数, 观看人数, 卡顿人数比率\n"
-    sqlContext.sql("SELECT cdn, platform, sum(lag) AS lag_person, count(lag) AS total_person, sum(lag)/count(lag) AS lag_ratio FROM (SELECT v1 AS cdn, platform, uid, myOrAgg(v4) AS lag FROM quanmin WHERE (tag='monitor' AND v1!='' AND hour(time)>=19) GROUP BY v1, platform, uid) lag_by_uid GROUP BY cdn, platform ORDER BY cdn, platform").
+    tmpString = "序号, cdn运营商, 终端类型, 卡顿人数, 观看人数, 卡顿人数比率\n"
+    sqlContext.sql("SELECT row_number() OVER (ORDER BY cdn, platform) AS row_num, cdn, platform, sum(lag) AS lag_person, count(lag) AS total_person, sum(lag)/count(lag) AS lag_ratio FROM (SELECT v1 AS cdn, platform, uid, myOrAgg(v4) AS lag FROM quanmin WHERE (tag='monitor' AND v1!='' AND hour(time)>=19) GROUP BY v1, platform, uid) lag_by_uid GROUP BY cdn, platform").
       collect().foreach((row: Row) => {
-      tmpString += "%s, %s, %d, %d, %f\n".format(row.getString(0), getDeviceName(row.getLong(1)), row.getLong(2), row.getLong(3), row.getDouble(4))
+      tmpString += "%d, %s, %s, %d, %d, %f\n".format(row.getInt(0), row.getString(1), getDeviceName(row.getLong(2)), row.getLong(3), row.getLong(4), row.getDouble(5))
     })
     attachmentStringsToSend.update("[%s]晚高峰卡顿人数比率".format(yesterday), tmpString)
 
-    tmpString = "省份, cdn运营商, isp, 卡顿人数, 观看人数, 卡顿人数比率\n"
-    sqlContext.sql("SELECT province, cdn, isp, sum(lag) AS lag_person, count(lag) AS total_person, sum(lag)/count(lag) AS lag_ratio FROM (SELECT province, v1 AS cdn, isp, uid, myOrAgg(v4) AS lag FROM quanmin WHERE (tag='monitor' AND v1!='') GROUP BY province, v1, isp, uid) lag_by_uid GROUP BY province, cdn, isp ORDER BY lag_person DESC LIMIT 5").
+    tmpString = "序号, cdn运营商, isp, 省份, 卡顿人数, 观看人数, 卡顿人数比率\n"
+    sqlContext.sql(
+      """
+        |SELECT * FROM
+        |    (SELECT row_number() OVER (PARTITION BY cdn, isp ORDER BY lag_ratio DESC) AS num, * FROM
+        |        (SELECT cdn, isp, province, sum(lag) AS lag_person, count(lag) AS total_person, sum(lag)/count(lag) AS lag_ratio FROM
+        |            (SELECT v1 AS cdn, province,
+        |            CASE WHEN isp='联通' OR isp='电信' OR isp='移动' OR isp='教育网' THEN isp
+        |            ELSE '其他' END AS isp,
+        |            device, myOrAgg(v4) AS lag FROM quanmin WHERE (tag='monitor' AND v1!='' AND country='中国') GROUP BY province, v1, isp, device) t
+        |        GROUP BY province, cdn, isp) t
+        |    WHERE total_person>100) t
+        |WHERE num<=5
+      """.stripMargin).
       collect().foreach((row: Row) => {
-      tmpString += "%s, %s, %s, %d, %d, %f\n".format(row.getString(0), row.getString(1), row.getString(2), row.getLong(3), row.getLong(4), row.getDouble(5))
+      tmpString += "%d, %s, %s, %s, %d, %d, %f\n".format(row.getInt(0), row.getString(1), row.getString(2), row.getString(3), row.getLong(4), row.getLong(5), row.getDouble(6))
     })
     attachmentStringsToSend.update("[%s]省份卡顿用户数top5".format(yesterday), tmpString)
 
-    tmpString = "cdn运营商, cdn_ip, 卡顿总次数, 总请求数, 卡顿次数比率\n"
-    sqlContext.sql("SELECT v1 AS cdn, v2 AS cdn_ip, sum(v4) AS lag_count, count(v4) AS total_count, sum(v4)/count(v4) AS lag_ratio FROM quanmin WHERE (tag='monitor' AND v1!='' AND v2!='') GROUP BY v1, v2 ORDER BY lag_count DESC LIMIT 10").
+    tmpString = "序号, cdn运营商, cdn_ip, 卡顿总次数, 总请求数, 卡顿次数比率\n"
+    sqlContext.sql(
+      """
+        |SELECT * FROM
+        |    (SELECT row_number() OVER (PARTITION BY cdn ORDER BY lag_ratio DESC) AS row_number, * FROM
+        |        (SELECT v1 AS cdn, v2 AS cdn_ip, sum(v4) AS lag_count, count(v4) AS total_count, sum(v4)/count(v4) AS lag_ratio FROM quanmin WHERE (tag='monitor' AND v1!='' AND v2!='') GROUP BY v1, v2) t
+        |    WHERE total_count>3000) t
+        |WHERE row_number<10
+      """.stripMargin).
       collect().foreach((row: Row) => {
-      tmpString += "%s, %s, %d, %d, %f\n".format(row.getString(0), row.getString(1), row.getLong(2), row.getLong(3), row.getDouble(4))
+      tmpString += "%d, %s, %s, %d, %d, %f\n".format(row.getInt(0), row.getString(1), row.getString(2), row.getLong(3), row.getLong(4), row.getDouble(5))
     })
     attachmentStringsToSend.update("[%s]卡顿cdn_ip下行节点卡顿top10\n".format(yesterday), tmpString)
 
