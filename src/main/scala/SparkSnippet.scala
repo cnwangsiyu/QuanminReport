@@ -44,28 +44,80 @@ object SparkSnippet {
     }
 
     tmpString = "序号, cdn运营商, 终端类型, 卡顿总次数, 总请求数, 卡顿次数比率\n"
-    sqlContext.sql("SELECT row_number() OVER (ORDER BY v1, platform) AS row_num, v1 AS cdn, platform, sum(v4) AS lag_count, count(v4) AS total_count, sum(v4)/count(v4) AS lag_ratio FROM quanmin WHERE (tag='monitor' AND v1!='') GROUP BY v1, platform").
+    sqlContext.sql(
+      """
+        |SELECT row_number() OVER (ORDER BY v1, platform) AS row_number, v1 AS cdn, platform, sum(v4) AS lag_count, count(v4) AS total_count, sum(v4)/count(v4) AS lag_ratio FROM
+        |    (SELECT tag, device, v4,
+        |    CASE
+        |        WHEN v1='bd' OR v1='baidu' THEN 'baidu'
+        |        ELSE v1 END AS v1,
+        |    CASE
+        |        WHEN platform=14 THEN 5
+        |        ELSE platform END AS platform
+        |    FROM quanmin) t
+        |WHERE (tag='monitor' AND v1!='') GROUP BY v1, platform
+      """.stripMargin).
       collect().foreach((row: Row) => {
       tmpString += "%d, %s, %s, %d, %d, %f\n".format(row.getInt(0), row.getString(1), getDeviceName(row.getLong(2)), row.getLong(3), row.getLong(4), row.getDouble(5))
     })
     attachmentStringsToSend.update("[%s]全天卡顿次数比率".format(yesterday), tmpString)
 
     tmpString = "序号, cdn运营商, 终端类型, 卡顿人数, 观看人数, 卡顿人数比率\n"
-    sqlContext.sql("SELECT row_number() OVER (ORDER BY cdn, platform) AS row_num, cdn, platform, sum(lag) AS lag_person, count(lag) AS total_person, sum(lag)/count(lag) AS lag_ratio FROM (SELECT v1 AS cdn, platform, uid, myOrAgg(v4) AS lag FROM quanmin WHERE (tag='monitor' AND v1!='') GROUP BY v1, platform, uid) lag_by_uid GROUP BY cdn, platform").
+    sqlContext.sql(
+      """
+        |SELECT row_number() OVER (ORDER BY cdn, platform) AS row_number, cdn, platform, sum(lag) AS lag_person, count(lag) AS total_person, sum(lag)/count(lag) AS lag_ratio FROM
+        |    (SELECT v1 AS cdn, platform, device, myOrAgg(v4) AS lag FROM
+        |        (SELECT tag, device, v4,
+        |        CASE
+        |            WHEN v1='bd' OR v1='baidu' THEN 'baidu'
+        |            ELSE v1 END AS v1,
+        |        CASE
+        |            WHEN platform=14 THEN 5
+        |            ELSE platform END AS platform
+        |        FROM quanmin) t
+        |    WHERE (tag='monitor' AND v1!='') GROUP BY v1, platform, device) t
+        |GROUP BY cdn, platform
+      """.stripMargin).
       collect().foreach((row: Row) => {
       tmpString += "%d, %s, %s, %d, %d, %f\n".format(row.getInt(0), row.getString(1), getDeviceName(row.getLong(2)), row.getLong(3), row.getLong(4), row.getDouble(5))
     })
     attachmentStringsToSend.update("[%s]全天卡顿人数比率".format(yesterday), tmpString)
 
     tmpString = "序号, cdn运营商, 终端类型, 卡顿总次数, 总请求数, 卡顿次数比率\n"
-    sqlContext.sql("SELECT row_number() OVER (ORDER BY v1, platform) AS row_num, v1 AS cdn, platform, sum(v4) AS lag_count, count(v4) AS total_count, sum(v4)/count(v4) AS lag_ratio FROM quanmin WHERE (tag='monitor' AND v1!='' AND hour(time)>=19) GROUP BY v1, platform").
+    sqlContext.sql(
+      """
+        |SELECT row_number() OVER (ORDER BY v1, platform) AS row_number, v1 AS cdn, platform, sum(v4) AS lag_count, count(v4) AS total_count, sum(v4)/count(v4) AS lag_ratio FROM
+        |    (SELECT time, tag, device, v4,
+        |    CASE
+        |        WHEN v1='bd' OR v1='baidu' THEN 'baidu'
+        |        ELSE v1 END AS v1,
+        |    CASE
+        |        WHEN platform=14 THEN 5
+        |        ELSE platform END AS platform
+        |    FROM quanmin) t
+        |WHERE (tag='monitor' AND v1!='' AND hour(time)>=19) GROUP BY v1, platform
+      """.stripMargin).
       collect().foreach((row: Row) => {
       tmpString += "%d, %s, %s, %d, %d, %f\n".format(row.getInt(0), row.getString(1), getDeviceName(row.getLong(2)), row.getLong(3), row.getLong(4), row.getDouble(5))
     })
     attachmentStringsToSend.update("[%s]晚高峰卡顿次数比率".format(yesterday), tmpString)
 
     tmpString = "序号, cdn运营商, 终端类型, 卡顿人数, 观看人数, 卡顿人数比率\n"
-    sqlContext.sql("SELECT row_number() OVER (ORDER BY cdn, platform) AS row_num, cdn, platform, sum(lag) AS lag_person, count(lag) AS total_person, sum(lag)/count(lag) AS lag_ratio FROM (SELECT v1 AS cdn, platform, uid, myOrAgg(v4) AS lag FROM quanmin WHERE (tag='monitor' AND v1!='' AND hour(time)>=19) GROUP BY v1, platform, uid) lag_by_uid GROUP BY cdn, platform").
+    sqlContext.sql(
+      """
+        |SELECT row_number() OVER (ORDER BY cdn, platform) AS row_number, cdn, platform, sum(lag) AS lag_person, count(lag) AS total_person, sum(lag)/count(lag) AS lag_ratio FROM
+        |    (SELECT v1 AS cdn, platform, device, myOrAgg(v4) AS lag FROM
+        |        (SELECT time, tag, device, v4,
+        |        CASE
+        |            WHEN v1='bd' OR v1='baidu' THEN 'baidu'
+        |            ELSE v1 END AS v1,
+        |        CASE
+        |            WHEN platform=14 THEN 5
+        |            ELSE platform END AS platform
+        |        FROM quanmin) t
+        |    WHERE (tag='monitor' AND v1!='' AND hour(time)>=19) GROUP BY v1, platform, device) t
+        |GROUP BY cdn, platform
+      """.stripMargin).
       collect().foreach((row: Row) => {
       tmpString += "%d, %s, %s, %d, %d, %f\n".format(row.getInt(0), row.getString(1), getDeviceName(row.getLong(2)), row.getLong(3), row.getLong(4), row.getDouble(5))
     })
@@ -75,27 +127,37 @@ object SparkSnippet {
     sqlContext.sql(
       """
         |SELECT * FROM
-        |    (SELECT row_number() OVER (PARTITION BY cdn, isp ORDER BY lag_ratio DESC) AS num, * FROM
-        |        (SELECT cdn, isp, province, sum(lag) AS lag_person, count(lag) AS total_person, sum(lag)/count(lag) AS lag_ratio FROM
-        |            (SELECT v1 AS cdn, province,
-        |            CASE WHEN isp='联通' OR isp='电信' OR isp='移动' OR isp='教育网' THEN isp
-        |            ELSE '其他' END AS isp,
-        |            device, myOrAgg(v4) AS lag FROM quanmin WHERE (tag='monitor' AND v1!='' AND country='中国') GROUP BY province, v1, isp, device) t
-        |        GROUP BY province, cdn, isp) t
-        |    WHERE total_person>100) t
-        |WHERE num<=5
+        |    (SELECT row_number() OVER (PARTITION BY cdn, isp ORDER BY lag_ratio DESC) AS row_number, * FROM
+        |        (SELECT v1 AS cdn, isp, province, sum(v4) AS lag_count, count(v4) AS total_count, sum(v4)/count(v4) AS lag_ratio FROM
+        |            (SELECT tag, province, country, device, v4,
+        |            CASE
+        |                WHEN v1='bd' OR v1='baidu' THEN 'baidu'
+        |                ELSE v1 END AS v1,
+        |            CASE
+        |                WHEN isp='联通' OR isp='电信' OR isp='移动' OR isp='教育网' THEN isp
+        |                ELSE '其他' END AS isp
+        |            FROM quanmin) t
+        |        WHERE (tag='monitor' AND v1!='' AND country='中国') GROUP BY province, v1, isp) t
+        |    WHERE total_count>500) t
+        |WHERE row_number<=5
       """.stripMargin).
       collect().foreach((row: Row) => {
       tmpString += "%d, %s, %s, %s, %d, %d, %f\n".format(row.getInt(0), row.getString(1), row.getString(2), row.getString(3), row.getLong(4), row.getLong(5), row.getDouble(6))
     })
-    attachmentStringsToSend.update("[%s]省份卡顿用户数top5".format(yesterday), tmpString)
+    attachmentStringsToSend.update("[%s]省份卡顿次数top5".format(yesterday), tmpString)
 
     tmpString = "序号, cdn运营商, cdn_ip, 卡顿总次数, 总请求数, 卡顿次数比率\n"
     sqlContext.sql(
       """
         |SELECT * FROM
         |    (SELECT row_number() OVER (PARTITION BY cdn ORDER BY lag_ratio DESC) AS row_number, * FROM
-        |        (SELECT v1 AS cdn, v2 AS cdn_ip, sum(v4) AS lag_count, count(v4) AS total_count, sum(v4)/count(v4) AS lag_ratio FROM quanmin WHERE (tag='monitor' AND v1!='' AND v2!='') GROUP BY v1, v2) t
+        |        (SELECT v1 AS cdn, v2 AS cdn_ip, sum(v4) AS lag_count, count(v4) AS total_count, sum(v4)/count(v4) AS lag_ratio FROM
+        |            (SELECT tag, v4, v2,
+        |            CASE
+        |                WHEN v1='bd' OR v1='baidu' THEN 'baidu'
+        |                ELSE v1 END AS v1
+        |            FROM quanmin) t
+        |        WHERE (tag='monitor' AND v1!='' AND v2!='') GROUP BY v1, v2) t
         |    WHERE total_count>3000) t
         |WHERE row_number<=10
       """.stripMargin).
