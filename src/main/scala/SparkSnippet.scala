@@ -49,13 +49,13 @@ object SparkSnippet {
         |SELECT row_number() OVER (ORDER BY v1, platform) AS row_number, v1 AS cdn, platform, sum(v4) AS lag_count, count(v4) AS total_count, sum(v4)/count(v4) AS lag_ratio FROM
         |    (SELECT tag, device, v4,
         |    CASE
-        |        WHEN v1='bd' OR v1='baidu' THEN 'baidu'
+        |        WHEN v1='bd' OR v1='baidu' THEN 'bd'
         |        ELSE v1 END AS v1,
         |    CASE
         |        WHEN platform=14 THEN 5
         |        ELSE platform END AS platform
         |    FROM quanmin) t
-        |WHERE (tag='monitor' AND v1!='') GROUP BY v1, platform
+        |WHERE (tag='monitor' AND v1!='' AND v1!='qm') GROUP BY v1, platform
       """.stripMargin).
       collect().foreach((row: Row) => {
       tmpString += "%d, %s, %s, %d, %d, %f\n".format(row.getInt(0), row.getString(1), getDeviceName(row.getLong(2)), row.getLong(3), row.getLong(4), row.getDouble(5))
@@ -69,13 +69,13 @@ object SparkSnippet {
         |    (SELECT v1 AS cdn, platform, device, myOrAgg(v4) AS lag FROM
         |        (SELECT tag, device, v4,
         |        CASE
-        |            WHEN v1='bd' OR v1='baidu' THEN 'baidu'
+        |            WHEN v1='bd' OR v1='baidu' THEN 'bd'
         |            ELSE v1 END AS v1,
         |        CASE
         |            WHEN platform=14 THEN 5
         |            ELSE platform END AS platform
         |        FROM quanmin) t
-        |    WHERE (tag='monitor' AND v1!='') GROUP BY v1, platform, device) t
+        |    WHERE (tag='monitor' AND v1!='' AND v1!='qm') GROUP BY v1, platform, device) t
         |GROUP BY cdn, platform
       """.stripMargin).
       collect().foreach((row: Row) => {
@@ -89,13 +89,13 @@ object SparkSnippet {
         |SELECT row_number() OVER (ORDER BY v1, platform) AS row_number, v1 AS cdn, platform, sum(v4) AS lag_count, count(v4) AS total_count, sum(v4)/count(v4) AS lag_ratio FROM
         |    (SELECT time, tag, device, v4,
         |    CASE
-        |        WHEN v1='bd' OR v1='baidu' THEN 'baidu'
+        |        WHEN v1='bd' OR v1='baidu' THEN 'bd'
         |        ELSE v1 END AS v1,
         |    CASE
         |        WHEN platform=14 THEN 5
         |        ELSE platform END AS platform
         |    FROM quanmin) t
-        |WHERE (tag='monitor' AND v1!='' AND hour(time)>=19) GROUP BY v1, platform
+        |WHERE (tag='monitor' AND v1!='' AND v1!='qm' AND hour(time)>=19) GROUP BY v1, platform
       """.stripMargin).
       collect().foreach((row: Row) => {
       tmpString += "%d, %s, %s, %d, %d, %f\n".format(row.getInt(0), row.getString(1), getDeviceName(row.getLong(2)), row.getLong(3), row.getLong(4), row.getDouble(5))
@@ -109,13 +109,13 @@ object SparkSnippet {
         |    (SELECT v1 AS cdn, platform, device, myOrAgg(v4) AS lag FROM
         |        (SELECT time, tag, device, v4,
         |        CASE
-        |            WHEN v1='bd' OR v1='baidu' THEN 'baidu'
+        |            WHEN v1='bd' OR v1='baidu' THEN 'bd'
         |            ELSE v1 END AS v1,
         |        CASE
         |            WHEN platform=14 THEN 5
         |            ELSE platform END AS platform
         |        FROM quanmin) t
-        |    WHERE (tag='monitor' AND v1!='' AND hour(time)>=19) GROUP BY v1, platform, device) t
+        |    WHERE (tag='monitor' AND v1!='' AND v1!='qm' AND hour(time)>=19) GROUP BY v1, platform, device) t
         |GROUP BY cdn, platform
       """.stripMargin).
       collect().foreach((row: Row) => {
@@ -131,13 +131,13 @@ object SparkSnippet {
         |        (SELECT v1 AS cdn, isp, province, sum(v4) AS lag_count, count(v4) AS total_count, sum(v4)/count(v4) AS lag_ratio FROM
         |            (SELECT tag, province, country, device, v4,
         |            CASE
-        |                WHEN v1='bd' OR v1='baidu' THEN 'baidu'
+        |                WHEN v1='bd' OR v1='baidu' THEN 'bd'
         |                ELSE v1 END AS v1,
         |            CASE
         |                WHEN isp='联通' OR isp='电信' OR isp='移动' OR isp='教育网' THEN isp
         |                ELSE '其他' END AS isp
         |            FROM quanmin) t
-        |        WHERE (tag='monitor' AND v1!='' AND country='中国') GROUP BY province, v1, isp) t
+        |        WHERE (tag='monitor' AND v1!='' AND v1!='qm' AND country='中国') GROUP BY province, v1, isp) t
         |    WHERE total_count>500) t
         |WHERE row_number<=5
       """.stripMargin).
@@ -154,10 +154,10 @@ object SparkSnippet {
         |        (SELECT v1 AS cdn, v2 AS cdn_ip, sum(v4) AS lag_count, count(v4) AS total_count, sum(v4)/count(v4) AS lag_ratio FROM
         |            (SELECT tag, v4, v2,
         |            CASE
-        |                WHEN v1='bd' OR v1='baidu' THEN 'baidu'
+        |                WHEN v1='bd' OR v1='baidu' THEN 'bd'
         |                ELSE v1 END AS v1
         |            FROM quanmin) t
-        |        WHERE (tag='monitor' AND v1!='' AND v2!='') GROUP BY v1, v2) t
+        |        WHERE (tag='monitor' AND v1!='' AND v1!='qm' AND v2!='') GROUP BY v1, v2) t
         |    WHERE total_count>3000) t
         |WHERE row_number<=10
       """.stripMargin).
