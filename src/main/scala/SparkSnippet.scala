@@ -11,6 +11,8 @@ import org.apache.spark.sql.Row
 import org.apache.spark.sql.hive.HiveContext
 import org.apache.spark.{SparkConf, SparkContext}
 
+import scala.collection.mutable
+
 object SparkSnippet {
   def main(args: Array[String]): Unit = {
     val conf = new SparkConf().
@@ -25,7 +27,7 @@ object SparkSnippet {
     val cal = Calendar.getInstance()
     cal.add(Calendar.DATE, -1)
     val yesterday = dateFormat.format(cal.getTime())
-    val dataPath = "/Users/WangSiyu/Desktop/quanmin2/export_%s-*".format("2017-03-02-00")
+    val dataPath = "/Users/WangSiyu/Desktop/quanmin/export_%s-*".format("2017-02-11-00")
     val quanminDataFrame = sqlContext.read.parquet(dataPath)
     quanminDataFrame.registerTempTable("quanmin")
 
@@ -123,26 +125,49 @@ object SparkSnippet {
     })
     attachmentStringsToSend.update("[%s]晚高峰卡顿人数比率".format(yesterday), tmpString)
 
-    tmpString = "序号, cdn运营商, isp, 省份, 卡顿人数, 观看人数, 卡顿人数比率\n"
+    val tmpList = mutable.MutableList[mutable.MutableList[String]]()
+    var previousCdn = ""
+    var maxLength = 0
+    tmpString = ""
     sqlContext.sql(
       """
         |SELECT * FROM
         |    (SELECT row_number() OVER (PARTITION BY cdn, isp ORDER BY lag_ratio DESC) AS row_number, * FROM
         |        (SELECT v1 AS cdn, isp, province, sum(v4) AS lag_count, count(v4) AS total_count, sum(v4)/count(v4) AS lag_ratio FROM
-        |            (SELECT tag, province, country, device, v4,
+        |            (SELECT tag, province, country, device, v4, isp,
         |            CASE
         |                WHEN v1='bd' OR v1='baidu' THEN 'bd'
-        |                ELSE v1 END AS v1,
-        |            CASE
-        |                WHEN isp='联通' OR isp='电信' OR isp='移动' OR isp='教育网' THEN isp
-        |                ELSE '其他' END AS isp
-        |            FROM quanmin) t
+        |                ELSE v1 END AS v1
+        |            FROM quanmin WHERE isp='联通' OR isp='电信' OR isp='移动' OR isp='教育网') t
         |        WHERE (tag='monitor' AND v1!='' AND v1!='qm' AND country='中国') GROUP BY province, v1, isp) t
         |    WHERE total_count>500) t
-        |WHERE row_number<=5
+        |WHERE row_number<=5 ORDER BY cdn, instr('电信移动联通教育网', isp), lag_ratio DESC
       """.stripMargin).
       collect().foreach((row: Row) => {
-      tmpString += "%d, %s, %s, %s, %d, %d, %f\n".format(row.getInt(0), row.getString(1), row.getString(2), row.getString(3), row.getLong(4), row.getLong(5), row.getDouble(6))
+      val singleRow = "%d, %s, %s, %s, %d, %d, %f".format(row.getInt(0), row.getString(1), row.getString(2), row.getString(3), row.getLong(4), row.getLong(5), row.getDouble(6))
+      if (previousCdn != row.getString(1)) {
+        tmpList += mutable.MutableList[String]("序号, cdn运营商, isp, 省份, 卡顿总次数, 总请求数, 卡顿次数比率",
+          singleRow)
+        previousCdn = row.getString(1)
+      } else {
+        tmpList.last += singleRow
+      }
+      if (tmpList.last.length > maxLength) {
+        maxLength = tmpList.last.length
+      }
+    })
+    tmpList.map((x: mutable.MutableList[String]) => {
+      for (_ <- x.length until maxLength) {
+        x += ",,,,,,"
+      }
+      x
+    })
+    tmpString += tmpList.reduce((a: mutable.MutableList[String], b: mutable.MutableList[String]) => {
+      a.map((x: String) => {
+        x + ",," + b(a.indexOf(x))
+      })
+    }).reduce((a: String, b: String) => {
+      a + "\n" + b
     })
     attachmentStringsToSend.update("[%s]省份卡顿次数top5".format(yesterday), tmpString)
 
