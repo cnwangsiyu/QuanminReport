@@ -27,7 +27,7 @@ object SparkSnippet {
     val cal = Calendar.getInstance()
     cal.add(Calendar.DATE, -1)
     val yesterday = dateFormat.format(cal.getTime())
-    val dataPath = "/Users/WangSiyu/Desktop/quanmin/export_%s-*".format("2017-02-11-00")
+    val dataPath = "/Users/WangSiyu/Desktop/quanmin/export_%s-*".format("2017-03-31")
     val quanminDataFrame = sqlContext.read.parquet(dataPath)
     quanminDataFrame.registerTempTable("quanmin")
 
@@ -163,9 +163,11 @@ object SparkSnippet {
       x
     })
     tmpString += tmpList.reduce((a: mutable.MutableList[String], b: mutable.MutableList[String]) => {
-      a.map((x: String) => {
-        x + ",," + b(a.indexOf(x))
-      })
+      val l = mutable.MutableList[String]()
+      for (i <- 0 until maxLength) {
+        l += (a(i) + ",," + b(i))
+      }
+      l
     }).reduce((a: String, b: String) => {
       a + "\n" + b
     })
