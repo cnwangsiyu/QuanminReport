@@ -80,15 +80,16 @@ object DailyReport {
     sqlContext.sql(
       """
         |SELECT row_number() OVER (ORDER BY v1, platform) AS row_number, v1 AS cdn, platform, sum(v4) AS lag_count, count(v4) AS total_count, sum(v4)/count(v4) AS lag_ratio FROM
-        |    (SELECT tag, device, v4,
+        |    (SELECT tag, device, v4, room_id, v5,
         |    CASE
         |        WHEN v1='bd' OR v1='baidu' THEN 'bd'
+        |        WHEN v1='qm' THEN 'tx'
         |        ELSE v1 END AS v1,
         |    CASE
         |        WHEN platform=14 THEN 5
         |        ELSE platform END AS platform
         |    FROM quanmin) t
-        |WHERE (tag='monitor' AND v1!='' AND v1!='qm') GROUP BY v1, platform
+        |WHERE (tag='monitor' AND v1!='' AND room_id!=-1 AND v5>1) GROUP BY v1, platform
       """.stripMargin).
       collect().foreach((row: Row) => {
       tmpString += "%d, %s, %s, %d, %d, %f\n".format(row.getInt(0), row.getString(1), getDeviceName(row.getLong(2)), row.getLong(3), row.getLong(4), row.getDouble(5))
@@ -100,15 +101,16 @@ object DailyReport {
       """
         |SELECT row_number() OVER (ORDER BY cdn, platform) AS row_number, cdn, platform, sum(lag) AS lag_person, count(lag) AS total_person, sum(lag)/count(lag) AS lag_ratio FROM
         |    (SELECT v1 AS cdn, platform, device, myOrAgg(v4) AS lag FROM
-        |        (SELECT tag, device, v4,
+        |        (SELECT tag, device, v4, room_id, v5,
         |        CASE
         |            WHEN v1='bd' OR v1='baidu' THEN 'bd'
+        |            WHEN v1='qm' THEN 'tx'
         |            ELSE v1 END AS v1,
         |        CASE
         |            WHEN platform=14 THEN 5
         |            ELSE platform END AS platform
         |        FROM quanmin) t
-        |    WHERE (tag='monitor' AND v1!='' AND v1!='qm') GROUP BY v1, platform, device) t
+        |    WHERE (tag='monitor' AND v1!='' AND room_id!=-1 AND v5>1) GROUP BY v1, platform, device) t
         |GROUP BY cdn, platform
       """.stripMargin).
       collect().foreach((row: Row) => {
@@ -120,15 +122,16 @@ object DailyReport {
     sqlContext.sql(
       """
         |SELECT row_number() OVER (ORDER BY v1, platform) AS row_number, v1 AS cdn, platform, sum(v4) AS lag_count, count(v4) AS total_count, sum(v4)/count(v4) AS lag_ratio FROM
-        |    (SELECT time, tag, device, v4,
+        |    (SELECT time, tag, device, v4, room_id, v5,
         |    CASE
         |        WHEN v1='bd' OR v1='baidu' THEN 'bd'
+        |        WHEN v1='qm' THEN 'tx'
         |        ELSE v1 END AS v1,
         |    CASE
         |        WHEN platform=14 THEN 5
         |        ELSE platform END AS platform
         |    FROM quanmin) t
-        |WHERE (tag='monitor' AND v1!='' AND v1!='qm' AND hour(time)>=19) GROUP BY v1, platform
+        |WHERE (tag='monitor' AND v1!='' AND hour(time)>=19 AND room_id!=-1 AND v5>1) GROUP BY v1, platform
       """.stripMargin).
       collect().foreach((row: Row) => {
       tmpString += "%d, %s, %s, %d, %d, %f\n".format(row.getInt(0), row.getString(1), getDeviceName(row.getLong(2)), row.getLong(3), row.getLong(4), row.getDouble(5))
@@ -140,15 +143,16 @@ object DailyReport {
       """
         |SELECT row_number() OVER (ORDER BY cdn, platform) AS row_number, cdn, platform, sum(lag) AS lag_person, count(lag) AS total_person, sum(lag)/count(lag) AS lag_ratio FROM
         |    (SELECT v1 AS cdn, platform, device, myOrAgg(v4) AS lag FROM
-        |        (SELECT time, tag, device, v4,
+        |        (SELECT time, tag, device, v4, room_id, v5,
         |        CASE
         |            WHEN v1='bd' OR v1='baidu' THEN 'bd'
+        |            WHEN v1='qm' THEN 'tx'
         |            ELSE v1 END AS v1,
         |        CASE
         |            WHEN platform=14 THEN 5
         |            ELSE platform END AS platform
         |        FROM quanmin) t
-        |    WHERE (tag='monitor' AND v1!='' AND v1!='qm' AND hour(time)>=19) GROUP BY v1, platform, device) t
+        |    WHERE (tag='monitor' AND v1!='' AND hour(time)>=19 AND room_id!=-1 AND v5>1) GROUP BY v1, platform, device) t
         |GROUP BY cdn, platform
       """.stripMargin).
       collect().foreach((row: Row) => {
@@ -165,12 +169,13 @@ object DailyReport {
         |SELECT * FROM
         |    (SELECT row_number() OVER (PARTITION BY cdn, isp ORDER BY lag_ratio DESC) AS row_number, * FROM
         |        (SELECT v1 AS cdn, isp, province, sum(v4) AS lag_count, count(v4) AS total_count, sum(v4)/count(v4) AS lag_ratio FROM
-        |            (SELECT tag, province, country, device, v4, isp,
+        |            (SELECT tag, province, country, device, v4, isp, room_id, v5,
         |            CASE
         |                WHEN v1='bd' OR v1='baidu' THEN 'bd'
+        |                WHEN v1='qm' THEN 'tx'
         |                ELSE v1 END AS v1
         |            FROM quanmin WHERE isp='联通' OR isp='电信' OR isp='移动' OR isp='教育网') t
-        |        WHERE (tag='monitor' AND v1!='' AND v1!='qm' AND country='中国') GROUP BY province, v1, isp) t
+        |        WHERE (tag='monitor' AND v1!='' AND country='中国' AND room_id!=-1 AND v5>1) GROUP BY province, v1, isp) t
         |    WHERE total_count>500) t
         |WHERE row_number<=5 ORDER BY cdn, instr('电信移动联通教育网', isp), lag_ratio DESC
       """.stripMargin).
@@ -210,12 +215,13 @@ object DailyReport {
         |SELECT * FROM
         |    (SELECT row_number() OVER (PARTITION BY cdn ORDER BY lag_ratio DESC) AS row_number, * FROM
         |        (SELECT v1 AS cdn, v2 AS cdn_ip, sum(v4) AS lag_count, count(v4) AS total_count, sum(v4)/count(v4) AS lag_ratio FROM
-        |            (SELECT tag, v4, v2,
+        |            (SELECT tag, v4, v2, room_id, v5,
         |            CASE
         |                WHEN v1='bd' OR v1='baidu' THEN 'bd'
+        |                WHEN v1='qm' THEN 'tx'
         |                ELSE v1 END AS v1
         |            FROM quanmin) t
-        |        WHERE (tag='monitor' AND v1!='' AND v1!='qm' AND v2!='') GROUP BY v1, v2) t
+        |        WHERE (tag='monitor' AND v1!='' AND v2!='' AND room_id!=-1 AND v5>1) GROUP BY v1, v2) t
         |    WHERE total_count>3000) t
         |WHERE row_number<=10
       """.stripMargin).
@@ -238,10 +244,11 @@ object DailyReport {
     sqlContext.sql(
       """
         |SELECT v1 AS cdn, sum(v4)/count(*) AS lag_ratio FROM
-        |    (SELECT v4,
+        |    (SELECT v4, room_id, v5,
         |    CASE
         |        WHEN v1='bd' OR v1='baidu' THEN 'bd'
-        |        ELSE v1 END AS v1 FROM quanmin WHERE tag='monitor' AND room_id!=-1 AND v1!='' AND v1!='qm') t
+        |        WHEN v1='qm' THEN 'tx'
+        |        ELSE v1 END AS v1 FROM quanmin WHERE tag='monitor' AND v1!='' AND room_id!=-1 AND v5>1) t
         |GROUP BY v1 ORDER BY lag_ratio DESC
       """.stripMargin).
       collect().foreach((row: Row) => {
