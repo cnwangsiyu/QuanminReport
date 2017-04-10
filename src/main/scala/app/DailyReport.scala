@@ -9,7 +9,6 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 
 import mail.HtmlMultiPartEmail
-import org.apache.commons.mail.MultiPartEmail
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.hive.HiveContext
 import org.apache.spark.{SparkConf, SparkContext}
@@ -37,6 +36,34 @@ object DailyReport {
 
     var attachmentStringsToSend = scala.collection.mutable.Map[String, String]()
     var tmpString = ""
+    var htmlTemplateString =
+      """
+        |<html>
+        |
+        |<body>
+        |
+        |<h4>卡顿次数比率-平台总卡顿率：</h4>
+        |<table border="1">
+        |<tr>
+        |  <td>本日平台总卡顿率</td>
+        |  <td>%f</td>
+        |</tr>
+        |</table>
+        |
+        |<br/>
+        |
+        |<h4>卡顿次数比率-全天各厂商总卡顿率：</h4>
+        |<table border="1">
+        |<tr>
+        |  <td>cdn运营商</td>
+        |  <td> 卡顿次数比率</td>
+        |</tr>
+        |%s
+        |</table>
+        |
+        |</body>
+        |</html>
+      """.stripMargin
 
     def getDeviceName(id: Long): String = {
       id match {
@@ -197,13 +224,16 @@ object DailyReport {
     })
     attachmentStringsToSend.update("[%s]卡顿cdn_ip下行节点卡顿top10\n".format(yesterday), tmpString)
 
+    var totalRatio: Double = 0
     tmpString = "本日平台总卡顿率,"
     sqlContext.sql("SELECT sum(v4)/count(*) AS lag_ratio FROM quanmin WHERE tag='monitor' AND room_id!=-1").
       collect().foreach((row: Row) => {
       tmpString += row.getDouble(0)
+      totalRatio = row.getDouble(0)
     })
     attachmentStringsToSend.update("[%s]卡顿次数比率-平台总卡顿率\n".format(yesterday), tmpString)
 
+    var htmlRows = ""
     tmpString = "cdn运营商, 卡顿次数比率\n"
     sqlContext.sql(
       """
@@ -216,8 +246,17 @@ object DailyReport {
       """.stripMargin).
       collect().foreach((row: Row) => {
       tmpString += "%s, %f\n".format(row.getString(0), row.getDouble(1))
+      htmlRows +=
+        """
+          |<tr>
+          |  <td>%s</td>
+          |  <td>%f</td>
+          |</tr>
+        """.stripMargin.format(row.getString(0), row.getDouble(1))
     })
     attachmentStringsToSend.update("[%s]卡顿次数比率-全天各厂商总卡顿率\n".format(yesterday), tmpString)
+
+    htmlTemplateString = htmlTemplateString.format(totalRatio, htmlRows)
 
     try {
       val email = new HtmlMultiPartEmail()
@@ -226,18 +265,8 @@ object DailyReport {
       email.setAuthentication("postmaster@apm.mail.qiniu.com", "gW6q6lbbiwFXEoyg")
       email.setFrom("no-reply@apm.mail.qiniu.com", "PILI-APM")
       email.addTo("wangsiyu@qiniu.com")
-      email.addCc("hzwangsiyu@163.com")
       email.setSubject("[%s][全民TV]CDN质量数据日报".format(yesterday))
-      email.setHtml(
-        """
-          |<table border="1">
-          |<tr>
-          |  <td>100</td>
-          |  <td>200</td>
-          |  <td>300</td>
-          |</tr>
-          |</table>
-        """.stripMargin)
+      email.setHtml(htmlTemplateString)
       attachmentStringsToSend.foreach[Unit]((test: (String, String)) => {
         val fileHandler = new File("/tmp/%s.csv".format(test._1))
         val fileWriter = new FileOutputStream(fileHandler)
