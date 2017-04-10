@@ -6,10 +6,10 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.qiniu.pili-engineering</groupId>
-    <artifactId>Spark-Snippet</artifactId>
+    <artifactId>QuanminReport</artifactId>
     <version>1.0</version>
     <packaging>jar</packaging>
-    <name>Spark-Snippet</name>
+    <name>QuanminReport</name>
     <url>https://github.com/pili-engineering</url>
 
     <properties>

@@ -1,3 +1,5 @@
+package app
+
 /**
   * Created by WangSiyu on 15/03/2017.
   */
@@ -10,13 +12,14 @@ import org.apache.commons.mail.MultiPartEmail
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.hive.HiveContext
 import org.apache.spark.{SparkConf, SparkContext}
+import udf.MyOrAgg
 
 import scala.collection.mutable
 
-object SparkSnippet {
+object DailyReport {
   def main(args: Array[String]): Unit = {
     val conf = new SparkConf().
-      setAppName("quanmin-report").
+      setAppName("daily-report").
       setMaster("local[8]")
     val sc = new SparkContext(conf)
     val sqlContext = new HiveContext(sc)
@@ -24,15 +27,15 @@ object SparkSnippet {
     sqlContext.udf.register("myOrAgg", new MyOrAgg)
 
     val dateFormat = new SimpleDateFormat("yyyy-MM-dd")
-    val cal = Calendar.getInstance()
+    val cal = Calendar.getInstance
     cal.add(Calendar.DATE, -1)
-    val yesterday = dateFormat.format(cal.getTime())
+    val yesterday = dateFormat.format(cal.getTime)
     val dataPath = "/Users/WangSiyu/Desktop/quanmin/export_%s-*".format("2017-03-31")
     val quanminDataFrame = sqlContext.read.parquet(dataPath)
     quanminDataFrame.registerTempTable("quanmin")
 
-    var attachmentStringsToSend: scala.collection.mutable.Map[String, String] = scala.collection.mutable.Map[String, String]()
-    var tmpString: String = ""
+    var attachmentStringsToSend = scala.collection.mutable.Map[String, String]()
+    var tmpString = ""
 
     def getDeviceName(id: Long): String = {
       id match {
@@ -62,7 +65,7 @@ object SparkSnippet {
       collect().foreach((row: Row) => {
       tmpString += "%d, %s, %s, %d, %d, %f\n".format(row.getInt(0), row.getString(1), getDeviceName(row.getLong(2)), row.getLong(3), row.getLong(4), row.getDouble(5))
     })
-    attachmentStringsToSend.update("[%s]全天卡顿次数比率".format(yesterday), tmpString)
+    attachmentStringsToSend.update("[%s]卡顿次数比率-全天".format(yesterday), tmpString)
 
     tmpString = "序号, cdn运营商, 终端类型, 卡顿人数, 观看人数, 卡顿人数比率\n"
     sqlContext.sql(
@@ -83,7 +86,7 @@ object SparkSnippet {
       collect().foreach((row: Row) => {
       tmpString += "%d, %s, %s, %d, %d, %f\n".format(row.getInt(0), row.getString(1), getDeviceName(row.getLong(2)), row.getLong(3), row.getLong(4), row.getDouble(5))
     })
-    attachmentStringsToSend.update("[%s]全天卡顿人数比率".format(yesterday), tmpString)
+    attachmentStringsToSend.update("[%s]卡顿人数比率-全天".format(yesterday), tmpString)
 
     tmpString = "序号, cdn运营商, 终端类型, 卡顿总次数, 总请求数, 卡顿次数比率\n"
     sqlContext.sql(
@@ -102,7 +105,7 @@ object SparkSnippet {
       collect().foreach((row: Row) => {
       tmpString += "%d, %s, %s, %d, %d, %f\n".format(row.getInt(0), row.getString(1), getDeviceName(row.getLong(2)), row.getLong(3), row.getLong(4), row.getDouble(5))
     })
-    attachmentStringsToSend.update("[%s]晚高峰卡顿次数比率".format(yesterday), tmpString)
+    attachmentStringsToSend.update("[%s]卡顿次数比率-晚高峰".format(yesterday), tmpString)
 
     tmpString = "序号, cdn运营商, 终端类型, 卡顿人数, 观看人数, 卡顿人数比率\n"
     sqlContext.sql(
@@ -123,7 +126,7 @@ object SparkSnippet {
       collect().foreach((row: Row) => {
       tmpString += "%d, %s, %s, %d, %d, %f\n".format(row.getInt(0), row.getString(1), getDeviceName(row.getLong(2)), row.getLong(3), row.getLong(4), row.getDouble(5))
     })
-    attachmentStringsToSend.update("[%s]晚高峰卡顿人数比率".format(yesterday), tmpString)
+    attachmentStringsToSend.update("[%s]卡顿人数比率-晚高峰".format(yesterday), tmpString)
 
     val tmpList = mutable.MutableList[mutable.MutableList[String]]()
     var previousCdn = ""
@@ -193,6 +196,28 @@ object SparkSnippet {
     })
     attachmentStringsToSend.update("[%s]卡顿cdn_ip下行节点卡顿top10\n".format(yesterday), tmpString)
 
+    tmpString = "本日平台总卡顿率,"
+    sqlContext.sql("SELECT sum(v4)/count(*) AS lag_ratio FROM quanmin WHERE tag='monitor' AND room_id!=-1").
+      collect().foreach((row: Row) => {
+      tmpString += row.getDouble(0)
+    })
+    attachmentStringsToSend.update("[%s]卡顿次数比率-平台总卡顿率\n".format(yesterday), tmpString)
+
+    tmpString = "cdn运营商, 卡顿次数比率\n"
+    sqlContext.sql(
+      """
+        |SELECT v1 AS cdn, sum(v4)/count(*) AS lag_ratio FROM
+        |    (SELECT v4,
+        |    CASE
+        |        WHEN v1='bd' OR v1='baidu' THEN 'bd'
+        |        ELSE v1 END AS v1 FROM quanmin WHERE tag='monitor' AND room_id!=-1 AND v1!='' AND v1!='qm') t
+        |GROUP BY v1 ORDER BY lag_ratio DESC
+      """.stripMargin).
+      collect().foreach((row: Row) => {
+      tmpString += "%s, %f\n".format(row.getString(0), row.getDouble(1))
+    })
+    attachmentStringsToSend.update("[%s]卡顿次数比率-全天各厂商总卡顿率\n".format(yesterday), tmpString)
+
     try {
       val email = new MultiPartEmail()
       email.setCharset("UTF-8")
@@ -200,7 +225,7 @@ object SparkSnippet {
       email.setAuthentication("postmaster@apm.mail.qiniu.com", "gW6q6lbbiwFXEoyg")
       email.setFrom("no-reply@apm.mail.qiniu.com", "PILI-APM")
       email.addTo("wangsiyu@qiniu.com")
-      email.addTo("hzwangsiyu@163.com")
+      email.addCc("hzwangsiyu@163.com")
       email.setSubject("[%s][全民TV] PILI-APM 报表".format(yesterday))
       email.setMsg("全民直播报表")
       attachmentStringsToSend.foreach[Unit]((test: (String, String)) => {
