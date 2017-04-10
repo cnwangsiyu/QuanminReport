@@ -2,7 +2,7 @@ package mail
 
 import javax.mail.internet.MimeBodyPart
 
-import org.apache.commons.mail.{EmailConstants, EmailUtils, MultiPartEmail}
+import org.apache.commons.mail.{EmailConstants, MultiPartEmail}
 
 /**
   * Created by WangSiyu on 10/04/2017.
