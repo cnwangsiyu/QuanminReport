@@ -8,6 +8,7 @@ import java.io.{File, FileOutputStream}
 import java.text.SimpleDateFormat
 import java.util.Calendar
 
+import mail.HtmlMultiPartEmail
 import org.apache.commons.mail.MultiPartEmail
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.hive.HiveContext
@@ -30,7 +31,7 @@ object DailyReport {
     val cal = Calendar.getInstance
     cal.add(Calendar.DATE, -1)
     val yesterday = dateFormat.format(cal.getTime)
-    val dataPath = "/Users/WangSiyu/Desktop/quanmin/export_%s-*".format("2017-03-31")
+    val dataPath = "/Users/WangSiyu/Desktop/quanmin/export_%s-*".format("2017-03-31-00")
     val quanminDataFrame = sqlContext.read.parquet(dataPath)
     quanminDataFrame.registerTempTable("quanmin")
 
@@ -219,7 +220,7 @@ object DailyReport {
     attachmentStringsToSend.update("[%s]卡顿次数比率-全天各厂商总卡顿率\n".format(yesterday), tmpString)
 
     try {
-      val email = new MultiPartEmail()
+      val email = new HtmlMultiPartEmail()
       email.setCharset("UTF-8")
       email.setHostName("smtp.sendcloud.net")
       email.setAuthentication("postmaster@apm.mail.qiniu.com", "gW6q6lbbiwFXEoyg")
@@ -227,7 +228,16 @@ object DailyReport {
       email.addTo("wangsiyu@qiniu.com")
       email.addCc("hzwangsiyu@163.com")
       email.setSubject("[%s][全民TV] PILI-APM 报表".format(yesterday))
-      email.setMsg("全民直播报表")
+      email.setHtml(
+        """
+          |<table border="1">
+          |<tr>
+          |  <td>100</td>
+          |  <td>200</td>
+          |  <td>300</td>
+          |</tr>
+          |</table>
+        """.stripMargin)
       attachmentStringsToSend.foreach[Unit]((test: (String, String)) => {
         val fileHandler = new File("/tmp/%s.csv".format(test._1))
         val fileWriter = new FileOutputStream(fileHandler)
