@@ -227,7 +227,7 @@ object DailyReport {
       email.setFrom("no-reply@apm.mail.qiniu.com", "PILI-APM")
       email.addTo("wangsiyu@qiniu.com")
       email.addCc("hzwangsiyu@163.com")
-      email.setSubject("[%s][全民TV] PILI-APM 报表".format(yesterday))
+      email.setSubject("[%s][全民TV]CDN质量数据日报".format(yesterday))
       email.setHtml(
         """
           |<table border="1">
