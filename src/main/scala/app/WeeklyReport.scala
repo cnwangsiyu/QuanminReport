@@ -272,13 +272,13 @@ object WeeklyReport {
     tmpArray1 = sqlContext.sql(
       """
         |SELECT province, avg(lag_ratio) AS lag_ratio FROM
-        |    (SELECT province, sum(v4)/count(*) AS lag_ratio FROM quanmin_this_week_lag WHERE country='中国' GROUP BY province, day(time)) t
+        |    (SELECT province, sum(v4)/count(*) AS lag_ratio FROM quanmin_this_week_lag WHERE country='中国' AND province!='中国' GROUP BY province, day(time)) t
         |GROUP BY province ORDER BY lag_ratio DESC LIMIT 5
       """.stripMargin).collect()
     tmpArray2 = sqlContext.sql(
       """
         |SELECT province, avg(lag_ratio) AS lag_ratio FROM
-        |    (SELECT province, sum(v4)/count(*) AS lag_ratio FROM quanmin_this_week_lag WHERE country='中国' AND isp='教育网' GROUP BY province, day(time)) t
+        |    (SELECT province, sum(v4)/count(*) AS lag_ratio FROM quanmin_this_week_lag WHERE country='中国' AND province!='中国' AND isp='教育网' GROUP BY province, day(time)) t
         |GROUP BY province ORDER BY lag_ratio DESC LIMIT 5
       """.stripMargin).collect()
     for(i <- tmpArray1.indices) {
@@ -303,7 +303,7 @@ object WeeklyReport {
       """
         |SELECT * FROM
         |    (SELECT province, avg(lag_ratio) AS lag_ratio FROM
-        |        (SELECT province, sum(v4)/count(*) AS lag_ratio FROM quanmin_this_week_lag WHERE country='中国' GROUP BY province, day(time)) t
+        |        (SELECT province, sum(v4)/count(*) AS lag_ratio FROM quanmin_this_week_lag WHERE country='中国' AND province!='中国' GROUP BY province, day(time)) t
         |    GROUP BY province) t1
         |    INNER JOIN
         |    quanmin_valid_province
@@ -314,7 +314,7 @@ object WeeklyReport {
       """
         |SELECT * FROM
         |    (SELECT province, avg(lag_ratio) AS lag_ratio FROM
-        |        (SELECT province, sum(v4)/count(*) AS lag_ratio FROM quanmin_this_week_lag WHERE country='中国' AND isp='教育网' GROUP BY province, day(time)) t
+        |        (SELECT province, sum(v4)/count(*) AS lag_ratio FROM quanmin_this_week_lag WHERE country='中国' AND province!='中国' AND isp='教育网' GROUP BY province, day(time)) t
         |    GROUP BY province) t1
         |    INNER JOIN
         |    quanmin_valid_province
@@ -395,7 +395,7 @@ object WeeklyReport {
         |                WHEN v1='al' OR v1='ali' THEN '阿里'
         |                WHEN v1='ws' THEN '网宿'
         |                ELSE '其他' END AS v1
-        |            FROM quanmin_this_week_lag WHERE country='中国' GROUP BY day(time), v1, province) t
+        |            FROM quanmin_this_week_lag WHERE country='中国' AND province!='中国' GROUP BY day(time), v1, province) t
         |        WHERE v1!='其他' GROUP BY province, v1
         |        ) t1
         |        INNER JOIN
@@ -433,7 +433,7 @@ object WeeklyReport {
         |                WHEN v1='al' OR v1='ali' THEN '阿里'
         |                WHEN v1='ws' THEN '网宿'
         |                ELSE '其他' END AS v1
-        |            FROM quanmin_this_week_lag WHERE country='中国' GROUP BY day(time), v1, province) t
+        |            FROM quanmin_this_week_lag WHERE country='中国' AND province!='中国' GROUP BY day(time), v1, province) t
         |        WHERE v1!='其他' GROUP BY province, v1
         |        ) t1
         |        INNER JOIN
