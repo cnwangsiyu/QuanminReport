@@ -26,6 +26,112 @@ object WeeklyReport {
     var tmpString = ""
     var tmpArray1:Array[Row] = Array()
     var tmpArray2:Array[Row] = Array()
+    var htmlTemplateString =
+      """
+        |<html>
+        |
+        |<body>
+        |
+        |<h4>卡顿率-各家卡顿率：</h4>
+        |<table border="1">
+        |<tr>
+        |  <td></td>
+        |  <td>本周卡顿率</td>
+        |  <td>上周卡顿率</td>
+        |  <td>差异</td>
+        |  <td>趋势</td>
+        |</tr>
+        |%s
+        |</table>
+        |
+        |<br/>
+        |
+        |<h4>卡顿率-平台总卡顿率：</h4>
+        |<table border="1">
+        |<tr>
+        |  <td>本周卡顿率</td>
+        |  <td>上周卡顿率</td>
+        |  <td>差异</td>
+        |  <td>趋势</td>
+        |</tr>
+        |%s
+        |</table>
+        |
+        |<h4>卡顿率-平台教育网总卡顿率：</h4>
+        |<table border="1">
+        |<tr>
+        |  <td>本周卡顿率</td>
+        |  <td>上周卡顿率</td>
+        |  <td>差异</td>
+        |  <td>趋势</td>
+        |</tr>
+        |%s
+        |</table>
+        |
+        |<h4>省份卡顿率排名-最差TOP5：</h4>
+        |<table border="1">
+        |<tr>
+        |  <td>省份</td>
+        |  <td>运营商</td>
+        |  <td>卡顿率</td>
+        |  <td>省份</td>
+        |  <td>运营商</td>
+        |  <td>卡顿率</td>
+        |</tr>
+        |%s
+        |</table>
+        |
+        |<h4>省份卡顿率排名-最优TOP5：</h4>
+        |<table border="1">
+        |<tr>
+        |  <td>省份</td>
+        |  <td>运营商</td>
+        |  <td>卡顿率</td>
+        |  <td>省份</td>
+        |  <td>运营商</td>
+        |  <td>卡顿率</td>
+        |</tr>
+        |%s
+        |</table>
+        |
+        |<h4>各家首屏数据：</h4>
+        |<table border="1">
+        |<tr>
+        |  <td>cdn</td>
+        |  <td>平台</td>
+        |  <td>首屏时间</td>
+        |  <td>平台</td>
+        |  <td>首屏时间</td>
+        |</tr>
+        |%s
+        |</table>
+        |
+        |<h4>各家CDN卡顿率-省份最优top5排名：</h4>
+        |<table border="1">
+        |<tr>
+        |  <td>排名</td>
+        |  <td>cdn厂商</td>
+        |  <td>省份</td>
+        |  <td>本周卡顿率</td>
+        |</tr>
+        |%s
+        |</table>
+        |
+        |<h4>各家CDN卡顿率-省份最差top5排名：</h4>
+        |<table border="1">
+        |<tr>
+        |  <td>排名</td>
+        |  <td>cdn厂商</td>
+        |  <td>省份</td>
+        |  <td>本周卡顿率</td>
+        |</tr>
+        |%s
+        |</table>
+        |
+        |</body>
+        |</html>
+      """.stripMargin
+    var htmlRows = new Array[String](8)
 
     tmpCal.add(Calendar.DATE, -7)
     dateString += dateFormat.format(tmpCal.getTime)
@@ -53,6 +159,7 @@ object WeeklyReport {
     sqlContext.sql("SELECT * FROM quanmin_last_week WHERE tag='first' AND room_id!=-1 AND v5<=10000 AND v5>0").cache().registerTempTable("quanmin_last_week_first")
 
     tmpString = ", 本周卡顿率, 上周卡顿率, 差异, 趋势\n"
+    htmlRows(0) = ""
     sqlContext.sql(
       """
         |SELECT t1.cdn, lag_ratio_this, lag_ratio_last, CASE
@@ -84,10 +191,21 @@ object WeeklyReport {
       """.stripMargin).
       collect().foreach((row: Row) => {
       tmpString += "%s, %f, %f, %s, %f\n".format(row.getString(0), row.getDouble(1), row.getDouble(2), row.getString(3), row.getDouble(4))
+      htmlRows(0) +=
+        """
+          |<tr>
+          |  <td>%s</td>
+          |  <td>%f</td>
+          |  <td>%f</td>
+          |  <td>%s</td>
+          |  <td>%f</td>
+          |</tr>
+        """.stripMargin.format(row.getString(0), row.getDouble(1), row.getDouble(2), row.getString(3), row.getDouble(4))
     })
     attachmentStringsToSend.update("卡顿率-各家卡顿率（%s）".format(dateString), tmpString)
 
     tmpString = "本周卡顿率, 上周卡顿率, 差异, 趋势\n"
+    htmlRows(1) = ""
     sqlContext.sql(
       """
         |SELECT *, CASE
@@ -102,10 +220,20 @@ object WeeklyReport {
       """.stripMargin).
       collect().foreach((row: Row) => {
       tmpString += "%f, %f, %s, %f\n".format(row.getDouble(0), row.getDouble(1), row.getString(2), row.getDouble(3))
+      htmlRows(1) +=
+        """
+          |<tr>
+          |  <td>%f</td>
+          |  <td>%f</td>
+          |  <td>%s</td>
+          |  <td>%f</td>
+          |</tr>
+        """.stripMargin.format(row.getDouble(0), row.getDouble(1), row.getString(2), row.getDouble(3))
     })
     attachmentStringsToSend.update("卡顿率-平台总卡顿率（%s）".format(dateString), tmpString)
 
     tmpString = "本周卡顿率, 上周卡顿率, 差异, 趋势\n"
+    htmlRows(2) = ""
     sqlContext.sql(
       """
         |SELECT *, CASE
@@ -120,10 +248,20 @@ object WeeklyReport {
       """.stripMargin).
       collect().foreach((row: Row) => {
       tmpString += "%f, %f, %s, %f\n".format(row.getDouble(0), row.getDouble(1), row.getString(2), row.getDouble(3))
+      htmlRows(2) +=
+        """
+          |<tr>
+          |  <td>%f</td>
+          |  <td>%f</td>
+          |  <td>%s</td>
+          |  <td>%f</td>
+          |</tr>
+        """.stripMargin.format(row.getDouble(0), row.getDouble(1), row.getString(2), row.getDouble(3))
     })
     attachmentStringsToSend.update("卡顿率-平台教育网总卡顿率（%s）".format(dateString), tmpString)
 
     tmpString = "省份, 运营商, 卡顿率, 省份, 运营商, 卡顿率\n"
+    htmlRows(3) = ""
     tmpArray1 = sqlContext.sql(
       """
         |SELECT province, avg(lag_ratio) AS lag_ratio FROM
@@ -138,10 +276,22 @@ object WeeklyReport {
       """.stripMargin).collect()
     for(i <- tmpArray1.indices) {
       tmpString += "%s, %s, %f, %s, %s, %f\n".format(tmpArray1(i).getString(0), "ALL", tmpArray1(i).getDouble(1), tmpArray2(i).getString(0), "教育网", tmpArray2(i).getDouble(1))
+      htmlRows(3) +=
+        """
+          |<tr>
+          |  <td>%s</td>
+          |  <td>%s</td>
+          |  <td>%f</td>
+          |  <td>%s</td>
+          |  <td>%s</td>
+          |  <td>%f</td>
+          |</tr>
+        """.stripMargin.format(tmpArray1(i).getString(0), "ALL", tmpArray1(i).getDouble(1), tmpArray2(i).getString(0), "教育网", tmpArray2(i).getDouble(1))
     }
     attachmentStringsToSend.update("省份卡顿率排名-最差TOP5（%s）".format(dateString), tmpString)
 
     tmpString = "省份, 运营商, 卡顿率, 省份, 运营商, 卡顿率\n"
+    htmlRows(4) = ""
     tmpArray1 = sqlContext.sql(
       """
         |SELECT province, avg(lag_ratio) AS lag_ratio FROM
@@ -156,10 +306,22 @@ object WeeklyReport {
       """.stripMargin).collect()
     for(i <- tmpArray1.indices) {
       tmpString += "%s, %s, %f, %s, %s, %f\n".format(tmpArray1(i).getString(0), "ALL", tmpArray1(i).getDouble(1), tmpArray2(i).getString(0), "教育网", tmpArray2(i).getDouble(1))
+      htmlRows(4) +=
+        """
+          |<tr>
+          |  <td>%s</td>
+          |  <td>%s</td>
+          |  <td>%f</td>
+          |  <td>%s</td>
+          |  <td>%s</td>
+          |  <td>%f</td>
+          |</tr>
+        """.stripMargin.format(tmpArray1(i).getString(0), "ALL", tmpArray1(i).getDouble(1), tmpArray2(i).getString(0), "教育网", tmpArray2(i).getDouble(1))
     }
     attachmentStringsToSend.update("省份卡顿率排名-最优TOP5（%s）".format(dateString), tmpString)
 
     tmpString = "cdn, 平台, 首屏时间, 平台, 首屏时间\n"
+    htmlRows(5) = ""
     tmpArray1 = sqlContext.sql(
       """
         |SELECT v1 AS cdn, avg(first) AS first FROM
@@ -188,10 +350,21 @@ object WeeklyReport {
       """.stripMargin).collect()
     for(i <- tmpArray1.indices) {
       tmpString += "%s, %s, %f, %s, %f\n".format(tmpArray1(i).getString(0), "PC端", tmpArray1(i).getDouble(1), "非PC端", tmpArray2(i).getDouble(1))
+      htmlRows(5) +=
+        """
+          |<tr>
+          |  <td>%s</td>
+          |  <td>%s</td>
+          |  <td>%f</td>
+          |  <td>%s</td>
+          |  <td>%f</td>
+          |</tr>
+        """.stripMargin.format(tmpArray1(i).getString(0), "PC端", tmpArray1(i).getDouble(1), "非PC端", tmpArray2(i).getDouble(1))
     }
     attachmentStringsToSend.update("各家首屏数据（%s）".format(dateString), tmpString)
 
     tmpString = "排名, cdn厂商, 省份, 本周卡顿率\n"
+    htmlRows(6) = ""
     sqlContext.sql(
       """
         |SELECT * FROM
@@ -211,10 +384,20 @@ object WeeklyReport {
       """.stripMargin).
       collect().foreach((row: Row) => {
       tmpString += "%d, %s, %s, %f\n".format(row.getInt(0), row.getString(1), row.getString(2), row.getDouble(3))
+      htmlRows(6) +=
+        """
+          |<tr>
+          |  <td>%d</td>
+          |  <td>%s</td>
+          |  <td>%s</td>
+          |  <td>%f</td>
+          |</tr>
+        """.stripMargin.format(row.getInt(0), row.getString(1), row.getString(2), row.getDouble(3))
     })
     attachmentStringsToSend.update("各家CDN卡顿率-省份最优top5排名", tmpString)
 
     tmpString = "排名, cdn厂商, 省份, 本周卡顿率\n"
+    htmlRows(7) = ""
     sqlContext.sql(
       """
         |SELECT * FROM
@@ -234,6 +417,15 @@ object WeeklyReport {
       """.stripMargin).
       collect().foreach((row: Row) => {
       tmpString += "%d, %s, %s, %f\n".format(row.getInt(0), row.getString(1), row.getString(2), row.getDouble(3))
+      htmlRows(7) +=
+        """
+          |<tr>
+          |  <td>%d</td>
+          |  <td>%s</td>
+          |  <td>%s</td>
+          |  <td>%f</td>
+          |</tr>
+        """.stripMargin.format(row.getInt(0), row.getString(1), row.getString(2), row.getDouble(3))
     })
     attachmentStringsToSend.update("各家CDN卡顿率-省份最差top5排名", tmpString)
 
@@ -245,7 +437,7 @@ object WeeklyReport {
       email.setFrom("no-reply@apm.mail.qiniu.com", "PILI-APM")
       email.addTo("wangsiyu@qiniu.com")
       email.setSubject("周报数据（%s）".format(dateString))
-      email.setHtml("周报见附件")
+      email.setHtml(htmlTemplateString.format(htmlRows: _*))
       attachmentStringsToSend.foreach[Unit]((test: (String, String)) => {
         val fileHandler = new File("/tmp/%s.csv".format(test._1))
         val fileWriter = new FileOutputStream(fileHandler)
