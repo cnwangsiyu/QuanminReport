@@ -1,21 +1,18 @@
 package app
 
-/**
-  * Created by WangSiyu on 15/03/2017.
-  */
-
 import java.io.{File, FileOutputStream}
 import java.text.SimpleDateFormat
 import java.util.Calendar
-
 import mail.HtmlMultiPartEmail
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.hive.HiveContext
 import org.apache.spark.{SparkConf, SparkContext}
 import udf.MyOrAgg
-
 import scala.collection.mutable
 
+/**
+  * Created by WangSiyu on 15/03/2017.
+  */
 object DailyReport {
   def main(args: Array[String]): Unit = {
     val conf = new SparkConf().

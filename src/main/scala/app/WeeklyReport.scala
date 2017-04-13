@@ -3,7 +3,6 @@ package app
 import java.io.{File, FileOutputStream}
 import java.text.SimpleDateFormat
 import java.util.Calendar
-
 import mail.HtmlMultiPartEmail
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.hive.HiveContext

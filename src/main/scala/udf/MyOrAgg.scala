@@ -1,13 +1,12 @@
 package udf
 
-/**
-  * Created by WangSiyu on 15/03/2017.
-  */
-
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.expressions.{MutableAggregationBuffer, UserDefinedAggregateFunction}
 import org.apache.spark.sql.types.{IntegerType, StructType}
 
+/**
+  * Created by WangSiyu on 15/03/2017.
+  */
 class MyOrAgg extends UserDefinedAggregateFunction {
   override def inputSchema = new StructType().
     add("nums", IntegerType)

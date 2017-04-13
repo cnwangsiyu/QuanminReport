@@ -1,7 +1,6 @@
 package mail
 
 import javax.mail.internet.MimeBodyPart
-
 import org.apache.commons.mail.{EmailConstants, MultiPartEmail}
 
 /**
