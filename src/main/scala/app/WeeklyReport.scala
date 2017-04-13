@@ -47,6 +47,11 @@ object WeeklyReport {
     }
     sqlContext.read.parquet(pathArray: _*).registerTempTable("quanmin_last_week")
 
+    sqlContext.sql("SELECT * FROM quanmin_this_week WHERE tag='monitor' AND room_id!=-1 AND v5>1").cache().registerTempTable("quanmin_this_week_lag")
+    sqlContext.sql("SELECT * FROM quanmin_last_week WHERE tag='monitor' AND room_id!=-1 AND v5>1").cache().registerTempTable("quanmin_last_week_lag")
+    sqlContext.sql("SELECT * FROM quanmin_this_week WHERE tag='first' AND room_id!=-1 AND v5<=10000 AND v5>0").cache().registerTempTable("quanmin_this_week_first")
+    sqlContext.sql("SELECT * FROM quanmin_last_week WHERE tag='first' AND room_id!=-1 AND v5<=10000 AND v5>0").cache().registerTempTable("quanmin_last_week_first")
+
     tmpString = ", 本周卡顿率, 上周卡顿率, 差异, 趋势\n"
     sqlContext.sql(
       """
@@ -61,7 +66,8 @@ object WeeklyReport {
         |            WHEN v1='tx' THEN '腾讯'
         |            WHEN v1='al' OR v1='ali' THEN '阿里'
         |            WHEN v1='ws' THEN '网宿'
-        |            ELSE '其他' END AS v1 FROM quanmin_this_week_lag GROUP BY v1, day(time)) t
+        |            ELSE '其他' END AS v1
+        |        FROM quanmin_this_week_lag GROUP BY v1, day(time)) t
         |    WHERE v1!='其他' GROUP BY v1) t1
         |    JOIN
         |    (SELECT v1 AS cdn, avg(lag_ratio) AS lag_ratio_last FROM
@@ -71,7 +77,8 @@ object WeeklyReport {
         |            WHEN v1='tx' THEN '腾讯'
         |            WHEN v1='al' OR v1='ali' THEN '阿里'
         |            WHEN v1='ws' THEN '网宿'
-        |            ELSE '其他' END AS v1 FROM quanmin_last_week_lag GROUP BY v1, day(time)) t
+        |            ELSE '其他' END AS v1
+        |        FROM quanmin_last_week_lag GROUP BY v1, day(time)) t
         |    WHERE v1!='其他' GROUP BY v1) t2
         |    ON t1.cdn=t2.cdn
       """.stripMargin).
@@ -162,7 +169,8 @@ object WeeklyReport {
         |        WHEN v1='tx' THEN '腾讯'
         |        WHEN v1='al' OR v1='ali' THEN '阿里'
         |        WHEN v1='ws' THEN '网宿'
-        |        ELSE '其他' END AS v1 FROM quanmin_this_week_first WHERE v5<=10000 AND v5>0 AND (platform=5 OR platform=14) GROUP BY v1, day(time)) t
+        |        ELSE '其他' END AS v1
+        |    FROM quanmin_this_week_first WHERE platform=5 OR platform=14 GROUP BY v1, day(time)) t
         |WHERE v1!='其他' GROUP BY v1 ORDER BY cdn
       """.stripMargin).collect()
     tmpArray2 = sqlContext.sql(
@@ -175,7 +183,7 @@ object WeeklyReport {
         |        WHEN v1='al' OR v1='ali' THEN '阿里'
         |        WHEN v1='ws' THEN '网宿'
         |        ELSE '其他' END AS v1
-        |    FROM quanmin_this_week_first WHERE v5<=10000 AND v5>0 AND platform!=5 AND platform!=14 GROUP BY v1, day(time)) t
+        |    FROM quanmin_this_week_first WHERE platform!=5 AND platform!=14 GROUP BY v1, day(time)) t
         |WHERE v1!='其他' GROUP BY v1 ORDER BY cdn
       """.stripMargin).collect()
     for(i <- tmpArray1.indices) {
