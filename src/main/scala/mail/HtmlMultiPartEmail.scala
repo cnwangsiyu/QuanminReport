@@ -8,7 +8,6 @@ import org.apache.commons.mail.{EmailConstants, MultiPartEmail}
   * Created by WangSiyu on 10/04/2017.
   */
 class HtmlMultiPartEmail extends MultiPartEmail {
-
   def setHtml(html: String): Unit = {
     val rootContainer = this.getContainer
     val msgHtml = new MimeBodyPart
