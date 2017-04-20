@@ -80,7 +80,6 @@ object DailyReport {
         |    (SELECT tag, device, v4, room_id, v5,
         |    CASE
         |        WHEN v1='bd' OR v1='baidu' THEN 'bd'
-        |        WHEN v1='qm' THEN 'tx'
         |        WHEN v1='' THEN 'undefined'
         |        ELSE v1 END AS v1,
         |    CASE
@@ -102,7 +101,6 @@ object DailyReport {
         |        (SELECT tag, device, v4, room_id, v5,
         |        CASE
         |            WHEN v1='bd' OR v1='baidu' THEN 'bd'
-        |            WHEN v1='qm' THEN 'tx'
         |            WHEN v1='' THEN 'undefined'
         |            ELSE v1 END AS v1,
         |        CASE
@@ -124,7 +122,6 @@ object DailyReport {
         |    (SELECT time, tag, device, v4, room_id, v5,
         |    CASE
         |        WHEN v1='bd' OR v1='baidu' THEN 'bd'
-        |        WHEN v1='qm' THEN 'tx'
         |        WHEN v1='' THEN 'undefined'
         |        ELSE v1 END AS v1,
         |    CASE
@@ -146,7 +143,6 @@ object DailyReport {
         |        (SELECT time, tag, device, v4, room_id, v5,
         |        CASE
         |            WHEN v1='bd' OR v1='baidu' THEN 'bd'
-        |            WHEN v1='qm' THEN 'tx'
         |            WHEN v1='' THEN 'undefined'
         |            ELSE v1 END AS v1,
         |        CASE
@@ -173,7 +169,6 @@ object DailyReport {
         |            (SELECT tag, province, country, device, v4, isp, room_id, v5,
         |            CASE
         |                WHEN v1='bd' OR v1='baidu' THEN 'bd'
-        |                WHEN v1='qm' THEN 'tx'
         |                WHEN v1='' THEN 'undefined'
         |                ELSE v1 END AS v1
         |            FROM quanmin WHERE isp='联通' OR isp='电信' OR isp='移动' OR isp='教育网') t
@@ -220,7 +215,6 @@ object DailyReport {
         |            (SELECT tag, v4, v2, room_id, v5,
         |            CASE
         |                WHEN v1='bd' OR v1='baidu' THEN 'bd'
-        |                WHEN v1='qm' THEN 'tx'
         |                WHEN v1='' THEN 'undefined'
         |                ELSE v1 END AS v1
         |            FROM quanmin) t
@@ -250,7 +244,6 @@ object DailyReport {
         |    (SELECT v4, room_id, v5,
         |    CASE
         |        WHEN v1='bd' OR v1='baidu' THEN 'bd'
-        |        WHEN v1='qm' THEN 'tx'
         |        WHEN v1='' THEN 'undefined'
         |        ELSE v1 END AS v1 FROM quanmin WHERE tag='monitor' AND room_id!=-1 AND v5>1) t
         |GROUP BY v1 ORDER BY lag_ratio DESC
