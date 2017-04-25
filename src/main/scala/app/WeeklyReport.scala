@@ -180,9 +180,11 @@ object WeeklyReport {
         |                WHEN v1='tx' THEN '腾讯'
         |                WHEN v1='al' OR v1='ali' THEN '阿里'
         |                WHEN v1='ws' THEN '网宿'
-        |                ELSE '其他' END AS v1
+        |                WHEN v1='yf' THEN '云帆'
+        |                WHEN v1='js' THEN '金山'
+        |                ELSE '未定义' END AS v1
         |            FROM quanmin_this_week_lag GROUP BY v1, day(time)) t
-        |        WHERE v1!='其他' GROUP BY v1) t1
+        |        GROUP BY v1) t1
         |        JOIN
         |        (SELECT v1 AS cdn, avg(lag_ratio) AS lag_ratio_last FROM
         |            (SELECT sum(v4)/count(*) AS lag_ratio, CASE
@@ -191,10 +193,13 @@ object WeeklyReport {
         |                WHEN v1='tx' THEN '腾讯'
         |                WHEN v1='al' OR v1='ali' THEN '阿里'
         |                WHEN v1='ws' THEN '网宿'
-        |                ELSE '其他' END AS v1
+        |                WHEN v1='yf' THEN '云帆'
+        |                WHEN v1='js' THEN '金山'
+        |                ELSE '未定义' END AS v1
         |            FROM quanmin_last_week_lag GROUP BY v1, day(time)) t
-        |        WHERE v1!='其他' GROUP BY v1) t2
+        |        GROUP BY v1) t2
         |        ON t1.cdn=t2.cdn
+        |ORDER BY instr('网宿百度腾讯阿里七牛云帆金山未定义', t1.cdn)
       """.stripMargin).
       collect().foreach((row: Row) => {
       tmpString += "%s, %f, %f, %s, %f\n".format(row.getString(0), row.getDouble(1), row.getDouble(2), row.getString(3), row.getDouble(4))
@@ -219,11 +224,11 @@ object WeeklyReport {
         |    WHEN lag_ratio_this>lag_ratio_last THEN '↑'
         |    WHEN lag_ratio_this<lag_ratio_last THEN '↓'
         |    ELSE '' END AS diff, lag_ratio_this-lag_ratio_last AS trend FROM
-        |    (SELECT avg(lag_ratio) AS lag_ratio_this FROM
-        |        (SELECT sum(v4)/count(*) AS lag_ratio FROM quanmin_this_week_lag GROUP BY day(time)) t) t1
-        |    JOIN
-        |    (SELECT avg(lag_ratio) AS lag_ratio_last FROM
-        |        (SELECT sum(v4)/count(*) AS lag_ratio FROM quanmin_last_week_lag GROUP BY day(time)) t) t2
+        |        (SELECT avg(lag_ratio) AS lag_ratio_this FROM
+        |            (SELECT sum(v4)/count(*) AS lag_ratio FROM quanmin_this_week_lag GROUP BY day(time)) t) t1
+        |        JOIN
+        |        (SELECT avg(lag_ratio) AS lag_ratio_last FROM
+        |            (SELECT sum(v4)/count(*) AS lag_ratio FROM quanmin_last_week_lag GROUP BY day(time)) t) t2
       """.stripMargin).
       collect().foreach((row: Row) => {
       tmpString += "%f, %f, %s, %f\n".format(row.getDouble(0), row.getDouble(1), row.getString(2), row.getDouble(3))
@@ -247,11 +252,11 @@ object WeeklyReport {
         |    WHEN lag_ratio_this>lag_ratio_last THEN '↑'
         |    WHEN lag_ratio_this<lag_ratio_last THEN '↓'
         |    ELSE '' END AS diff, lag_ratio_this-lag_ratio_last AS trend FROM
-        |    (SELECT avg(lag_ratio) AS lag_ratio_this FROM
-        |        (SELECT sum(v4)/count(*) AS lag_ratio FROM quanmin_this_week_lag WHERE isp='教育网' GROUP BY day(time)) t) t1
-        |    JOIN
-        |    (SELECT avg(lag_ratio) AS lag_ratio_last FROM
-        |        (SELECT sum(v4)/count(*) AS lag_ratio FROM quanmin_last_week_lag WHERE isp='教育网' GROUP BY day(time)) t) t2
+        |        (SELECT avg(lag_ratio) AS lag_ratio_this FROM
+        |            (SELECT sum(v4)/count(*) AS lag_ratio FROM quanmin_this_week_lag WHERE isp='教育网' GROUP BY day(time)) t) t1
+        |        JOIN
+        |        (SELECT avg(lag_ratio) AS lag_ratio_last FROM
+        |            (SELECT sum(v4)/count(*) AS lag_ratio FROM quanmin_last_week_lag WHERE isp='教育网' GROUP BY day(time)) t) t2
       """.stripMargin).
       collect().foreach((row: Row) => {
       tmpString += "%f, %f, %s, %f\n".format(row.getDouble(0), row.getDouble(1), row.getString(2), row.getDouble(3))
@@ -348,9 +353,11 @@ object WeeklyReport {
         |        WHEN v1='tx' THEN '腾讯'
         |        WHEN v1='al' OR v1='ali' THEN '阿里'
         |        WHEN v1='ws' THEN '网宿'
-        |        ELSE '其他' END AS v1
+        |        WHEN v1='yf' THEN '云帆'
+        |        WHEN v1='js' THEN '金山'
+        |        ELSE '未定义' END AS v1
         |    FROM quanmin_this_week_first WHERE platform=5 OR platform=14 GROUP BY v1, day(time)) t
-        |WHERE v1!='其他' GROUP BY v1 ORDER BY cdn
+        |GROUP BY v1 ORDER BY instr('网宿百度腾讯阿里七牛云帆金山未定义', cdn)
       """.stripMargin).collect()
     tmpArray2 = sqlContext.sql(
       """
@@ -361,9 +368,11 @@ object WeeklyReport {
         |        WHEN v1='tx' THEN '腾讯'
         |        WHEN v1='al' OR v1='ali' THEN '阿里'
         |        WHEN v1='ws' THEN '网宿'
-        |        ELSE '其他' END AS v1
+        |        WHEN v1='yf' THEN '云帆'
+        |        WHEN v1='js' THEN '金山'
+        |        ELSE '未定义' END AS v1
         |    FROM quanmin_this_week_first WHERE platform!=5 AND platform!=14 GROUP BY v1, day(time)) t
-        |WHERE v1!='其他' GROUP BY v1 ORDER BY cdn
+        |GROUP BY v1 ORDER BY instr('网宿百度腾讯阿里七牛云帆金山未定义', cdn)
       """.stripMargin).collect()
     for(i <- tmpArray1.indices) {
       tmpString += "%s, %s, %f, %s, %f\n".format(tmpArray1(i).getString(0), "PC端", tmpArray1(i).getDouble(1), "非PC端", tmpArray2(i).getDouble(1))
@@ -394,15 +403,17 @@ object WeeklyReport {
         |                WHEN v1='tx' THEN '腾讯'
         |                WHEN v1='al' OR v1='ali' THEN '阿里'
         |                WHEN v1='ws' THEN '网宿'
-        |                ELSE '其他' END AS v1
+        |                WHEN v1='yf' THEN '云帆'
+        |                WHEN v1='js' THEN '金山'
+        |                ELSE '未定义' END AS v1
         |            FROM quanmin_this_week_lag WHERE country='中国' AND province!='中国' GROUP BY day(time), v1, province) t
-        |        WHERE v1!='其他' GROUP BY province, v1
+        |        GROUP BY province, v1
         |        ) t1
         |        INNER JOIN
         |        quanmin_valid_province
         |        ON t1.province=quanmin_valid_province.province2
         |    ) t
-        |WHERE row_number<=5 ORDER BY cdn, lag_ratio
+        |WHERE row_number<=5 ORDER BY instr('网宿百度腾讯阿里七牛云帆金山未定义', cdn), lag_ratio
       """.stripMargin).
       collect().foreach((row: Row) => {
       tmpString += "%d, %s, %s, %f\n".format(row.getInt(0), row.getString(1), row.getString(2), row.getDouble(3))
@@ -432,7 +443,9 @@ object WeeklyReport {
         |                WHEN v1='tx' THEN '腾讯'
         |                WHEN v1='al' OR v1='ali' THEN '阿里'
         |                WHEN v1='ws' THEN '网宿'
-        |                ELSE '其他' END AS v1
+        |                WHEN v1='yf' THEN '云帆'
+        |                WHEN v1='js' THEN '金山'
+        |                ELSE '未定义' END AS v1
         |            FROM quanmin_this_week_lag WHERE country='中国' AND province!='中国' GROUP BY day(time), v1, province) t
         |        WHERE v1!='其他' GROUP BY province, v1
         |        ) t1
@@ -440,7 +453,7 @@ object WeeklyReport {
         |        quanmin_valid_province
         |        ON t1.province=quanmin_valid_province.province2
         |    ) t
-        |WHERE row_number<=5 ORDER BY cdn, lag_ratio DESC
+        |WHERE row_number<=5 ORDER BY instr('网宿百度腾讯阿里七牛云帆金山未定义', cdn), lag_ratio DESC
       """.stripMargin).
       collect().foreach((row: Row) => {
       tmpString += "%d, %s, %s, %f\n".format(row.getInt(0), row.getString(1), row.getString(2), row.getDouble(3))
