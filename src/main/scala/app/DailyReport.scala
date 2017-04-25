@@ -21,15 +21,18 @@ object DailyReport {
     val sc = new SparkContext(conf)
     val sqlContext = new HiveContext(sc)
 
-    sqlContext.udf.register("myOrAgg", new MyOrAgg)
+    def getDeviceName(id: Long): String = {
+      id match {
+        case 1 => "Android"
+        case 2 => "iOS"
+        case 5 => "PC"
+        case 9 => "H5"
+        case 14 => "PC新秀"
+        case _ => "其他"
+      }
+    }
 
-    val dateFormat = new SimpleDateFormat("yyyy-MM-dd")
-    val cal = Calendar.getInstance
-    cal.add(Calendar.DATE, -1)
-    val yesterday = dateFormat.format(cal.getTime)
-    val dataPath = "/Users/WangSiyu/Desktop/quanmin/export_%s-*".format("2017-03-31-00")
-    val quanminDataFrame = sqlContext.read.parquet(dataPath)
-    quanminDataFrame.registerTempTable("quanmin")
+    sqlContext.udf.register("myOrAgg", new MyOrAgg)
 
     var attachmentStringsToSend = scala.collection.mutable.Map[String, String]()
     var tmpString = ""
@@ -62,32 +65,39 @@ object DailyReport {
         |</html>
       """.stripMargin
 
-    def getDeviceName(id: Long): String = {
-      id match {
-        case 1 => "Android"
-        case 2 => "iOS"
-        case 5 => "PC"
-        case 9 => "H5"
-        case 14 => "PC新秀"
-        case _ => "其他"
-      }
-    }
+    sc.hadoopConfiguration.set("fs.qiniu.access.key", "YFvDcv7ie2tmSCRjX8aYHwrfqpeXR4M_ef2Az1CK")
+    sc.hadoopConfiguration.set("fs.qiniu.secret.key", "MCBFkF6tv55uxavHTnxKEFt8f7uKL5rD0Lv2gL5n")
+    sc.hadoopConfiguration.set("fs.qiniu.bucket.domain", "http://oihu9i4fk.bkt.clouddn.com")
 
-    tmpString = "序号, cdn运营商, 终端类型, 卡顿总次数, 总请求数, 卡顿次数比率\n"
+    val dateFormat = new SimpleDateFormat("yyyy-MM-dd")
+    val cal = Calendar.getInstance
+    cal.add(Calendar.DATE, -1)
+    val yesterday = dateFormat.format(cal.getTime)
+
+    val dataPath = "qiniu://quanmin2/export_%s-*".format(yesterday)
+    val quanmin = sqlContext.read.parquet(dataPath)
+    quanmin.printSchema()
+    quanmin.registerTempTable("quanmin_raw")
+
     sqlContext.sql(
       """
-        |SELECT row_number() OVER (ORDER BY v1, platform) AS row_number, v1 AS cdn, platform, sum(v4) AS lag_count, count(v4) AS total_count, sum(v4)/count(v4) AS lag_ratio FROM
-        |    (SELECT tag, device, v4, room_id, v5,
-        |    CASE
-        |        WHEN v1='bd' OR v1='baidu' THEN 'bd'
-        |        WHEN v1='' THEN 'undefined'
-        |        ELSE v1 END AS v1,
-        |    CASE
-        |        WHEN platform=14 THEN 5
-        |        ELSE platform END AS platform
-        |    FROM quanmin) t
-        |WHERE (tag='monitor' AND room_id!=-1 AND v5>1) GROUP BY v1, platform
-      """.stripMargin).
+        |SELECT CASE
+        |    WHEN v1='bd' OR v1='baidu' THEN '百度'
+        |    WHEN v1='qn' THEN '七牛'
+        |    WHEN v1='tx' THEN '腾讯'
+        |    WHEN v1='al' OR v1='ali' THEN '阿里'
+        |    WHEN v1='ws' THEN '网宿'
+        |    WHEN v1='yf' THEN '云帆'
+        |    WHEN v1='js' THEN '金山'
+        |    ELSE '未定义' END AS cdn,
+        |CASE
+        |    WHEN platform=14 THEN 5
+        |    ELSE platform END AS platform1, *
+        |FROM quanmin_raw WHERE tag='monitor' AND room_id!=-1 AND v5>1
+      """.stripMargin).cache().registerTempTable("quanmin_lag")
+
+    tmpString = "序号, cdn运营商, 终端类型, 卡顿总次数, 总请求数, 卡顿次数比率\n"
+    sqlContext.sql("SELECT row_number() OVER (ORDER BY instr('网宿百度腾讯阿里七牛云帆金山未定义', cdn), platform1) AS row_number, cdn, platform1, sum(v4) AS lag_count, count(v4) AS total_count, sum(v4)/count(v4) AS lag_ratio FROM quanmin_lag GROUP BY cdn, platform1").
       collect().foreach((row: Row) => {
       tmpString += "%d, %s, %s, %d, %d, %f\n".format(row.getInt(0), row.getString(1), getDeviceName(row.getLong(2)), row.getLong(3), row.getLong(4), row.getDouble(5))
     })
@@ -96,19 +106,11 @@ object DailyReport {
     tmpString = "序号, cdn运营商, 终端类型, 卡顿人数, 观看人数, 卡顿人数比率\n"
     sqlContext.sql(
       """
-        |SELECT row_number() OVER (ORDER BY cdn, platform) AS row_number, cdn, platform, sum(lag) AS lag_person, count(lag) AS total_person, sum(lag)/count(lag) AS lag_ratio FROM
-        |    (SELECT v1 AS cdn, platform, device, myOrAgg(v4) AS lag FROM
-        |        (SELECT tag, device, v4, room_id, v5,
-        |        CASE
-        |            WHEN v1='bd' OR v1='baidu' THEN 'bd'
-        |            WHEN v1='' THEN 'undefined'
-        |            ELSE v1 END AS v1,
-        |        CASE
-        |            WHEN platform=14 THEN 5
-        |            ELSE platform END AS platform
-        |        FROM quanmin) t
-        |    WHERE (tag='monitor' AND room_id!=-1 AND v5>1) GROUP BY v1, platform, device) t
-        |GROUP BY cdn, platform
+        |SELECT row_number() OVER (ORDER BY instr('网宿百度腾讯阿里七牛云帆金山未定义', cdn), platform1) AS row_number, cdn, platform1, sum(lag) AS lag_person, count(lag) AS total_person, sum(lag)/count(lag) AS lag_ratio FROM
+        |    (SELECT cdn, platform1, device, myOrAgg(v4) AS lag FROM
+        |        quanmin_lag
+        |    GROUP BY cdn, platform1, device) t
+        |GROUP BY cdn, platform1
       """.stripMargin).
       collect().foreach((row: Row) => {
       tmpString += "%d, %s, %s, %d, %d, %f\n".format(row.getInt(0), row.getString(1), getDeviceName(row.getLong(2)), row.getLong(3), row.getLong(4), row.getDouble(5))
@@ -116,20 +118,7 @@ object DailyReport {
     attachmentStringsToSend.update("[%s]卡顿人数比率-全天".format(yesterday), tmpString)
 
     tmpString = "序号, cdn运营商, 终端类型, 卡顿总次数, 总请求数, 卡顿次数比率\n"
-    sqlContext.sql(
-      """
-        |SELECT row_number() OVER (ORDER BY v1, platform) AS row_number, v1 AS cdn, platform, sum(v4) AS lag_count, count(v4) AS total_count, sum(v4)/count(v4) AS lag_ratio FROM
-        |    (SELECT time, tag, device, v4, room_id, v5,
-        |    CASE
-        |        WHEN v1='bd' OR v1='baidu' THEN 'bd'
-        |        WHEN v1='' THEN 'undefined'
-        |        ELSE v1 END AS v1,
-        |    CASE
-        |        WHEN platform=14 THEN 5
-        |        ELSE platform END AS platform
-        |    FROM quanmin) t
-        |WHERE (tag='monitor' AND hour(time)>=19 AND room_id!=-1 AND v5>1) GROUP BY v1, platform
-      """.stripMargin).
+    sqlContext.sql("SELECT row_number() OVER (ORDER BY instr('网宿百度腾讯阿里七牛云帆金山未定义', cdn), platform1) AS row_number, cdn, platform1, sum(v4) AS lag_count, count(v4) AS total_count, sum(v4)/count(v4) AS lag_ratio FROM quanmin_lag WHERE hour(time)>=19 GROUP BY cdn, platform1").
       collect().foreach((row: Row) => {
       tmpString += "%d, %s, %s, %d, %d, %f\n".format(row.getInt(0), row.getString(1), getDeviceName(row.getLong(2)), row.getLong(3), row.getLong(4), row.getDouble(5))
     })
@@ -138,19 +127,10 @@ object DailyReport {
     tmpString = "序号, cdn运营商, 终端类型, 卡顿人数, 观看人数, 卡顿人数比率\n"
     sqlContext.sql(
       """
-        |SELECT row_number() OVER (ORDER BY cdn, platform) AS row_number, cdn, platform, sum(lag) AS lag_person, count(lag) AS total_person, sum(lag)/count(lag) AS lag_ratio FROM
-        |    (SELECT v1 AS cdn, platform, device, myOrAgg(v4) AS lag FROM
-        |        (SELECT time, tag, device, v4, room_id, v5,
-        |        CASE
-        |            WHEN v1='bd' OR v1='baidu' THEN 'bd'
-        |            WHEN v1='' THEN 'undefined'
-        |            ELSE v1 END AS v1,
-        |        CASE
-        |            WHEN platform=14 THEN 5
-        |            ELSE platform END AS platform
-        |        FROM quanmin) t
-        |    WHERE (tag='monitor' AND hour(time)>=19 AND room_id!=-1 AND v5>1) GROUP BY v1, platform, device) t
-        |GROUP BY cdn, platform
+        |SELECT row_number() OVER (ORDER BY instr('网宿百度腾讯阿里七牛云帆金山未定义', cdn), platform1) AS row_number, cdn, platform1, sum(lag) AS lag_person, count(lag) AS total_person, sum(lag)/count(lag) AS lag_ratio FROM
+        |    (SELECT cdn, platform1, device, myOrAgg(v4) AS lag FROM quanmin_lag
+        |    WHERE hour(time)>=19 GROUP BY cdn, platform1, device) t
+        |GROUP BY cdn, platform1
       """.stripMargin).
       collect().foreach((row: Row) => {
       tmpString += "%d, %s, %s, %d, %d, %f\n".format(row.getInt(0), row.getString(1), getDeviceName(row.getLong(2)), row.getLong(3), row.getLong(4), row.getDouble(5))
@@ -165,16 +145,9 @@ object DailyReport {
       """
         |SELECT * FROM
         |    (SELECT row_number() OVER (PARTITION BY cdn, isp ORDER BY lag_ratio DESC) AS row_number, * FROM
-        |        (SELECT v1 AS cdn, isp, province, sum(v4) AS lag_count, count(v4) AS total_count, sum(v4)/count(v4) AS lag_ratio FROM
-        |            (SELECT tag, province, country, device, v4, isp, room_id, v5,
-        |            CASE
-        |                WHEN v1='bd' OR v1='baidu' THEN 'bd'
-        |                WHEN v1='' THEN 'undefined'
-        |                ELSE v1 END AS v1
-        |            FROM quanmin WHERE isp='联通' OR isp='电信' OR isp='移动' OR isp='教育网') t
-        |        WHERE (tag='monitor' AND country='中国' AND room_id!=-1 AND v5>1) GROUP BY province, v1, isp) t
+        |        (SELECT cdn, isp, province, sum(v4) AS lag_count, count(v4) AS total_count, sum(v4)/count(v4) AS lag_ratio FROM quanmin_lag WHERE country='中国' AND (isp='联通' OR isp='电信' OR isp='移动' OR isp='教育网') GROUP BY province, cdn, isp) t
         |    WHERE total_count>500) t
-        |WHERE row_number<=5 ORDER BY cdn, instr('电信移动联通教育网', isp), lag_ratio DESC
+        |WHERE row_number<=5 ORDER BY instr('网宿百度腾讯阿里七牛云帆金山未定义', cdn), instr('电信移动联通教育网', isp), lag_ratio DESC
       """.stripMargin).
       collect().foreach((row: Row) => {
       val singleRow = "%d, %s, %s, %s, %d, %d, %f".format(row.getInt(0), row.getString(1), row.getString(2), row.getString(3), row.getLong(4), row.getLong(5), row.getDouble(6))
@@ -211,16 +184,10 @@ object DailyReport {
       """
         |SELECT * FROM
         |    (SELECT row_number() OVER (PARTITION BY cdn ORDER BY lag_ratio DESC) AS row_number, * FROM
-        |        (SELECT v1 AS cdn, v2 AS cdn_ip, sum(v4) AS lag_count, count(v4) AS total_count, sum(v4)/count(v4) AS lag_ratio FROM
-        |            (SELECT tag, v4, v2, room_id, v5,
-        |            CASE
-        |                WHEN v1='bd' OR v1='baidu' THEN 'bd'
-        |                WHEN v1='' THEN 'undefined'
-        |                ELSE v1 END AS v1
-        |            FROM quanmin) t
-        |        WHERE (tag='monitor' AND v2!='' AND room_id!=-1 AND v5>1) GROUP BY v1, v2) t
+        |        (SELECT cdn, v2 AS cdn_ip, sum(v4) AS lag_count, count(v4) AS total_count, sum(v4)/count(v4) AS lag_ratio FROM quanmin_lag
+        |        WHERE v2!='' GROUP BY cdn, v2) t
         |    WHERE total_count>3000) t
-        |WHERE row_number<=10
+        |WHERE row_number<=10 ORDER BY instr('网宿百度腾讯阿里七牛云帆金山未定义', cdn), lag_ratio DESC
       """.stripMargin).
       collect().foreach((row: Row) => {
       tmpString += "%d, %s, %s, %d, %d, %f\n".format(row.getInt(0), row.getString(1), row.getString(2), row.getLong(3), row.getLong(4), row.getDouble(5))
@@ -229,7 +196,7 @@ object DailyReport {
 
     var totalRatio: Double = 0
     tmpString = "本日平台总卡顿率,"
-    sqlContext.sql("SELECT sum(v4)/count(*) AS lag_ratio FROM quanmin WHERE tag='monitor' AND room_id!=-1 AND v5>1").
+    sqlContext.sql("SELECT sum(v4)/count(*) AS lag_ratio FROM quanmin_lag WHERE tag='monitor' AND room_id!=-1 AND v5>1").
       collect().foreach((row: Row) => {
       tmpString += row.getDouble(0)
       totalRatio = row.getDouble(0)
@@ -238,16 +205,7 @@ object DailyReport {
 
     var htmlRows = ""
     tmpString = "cdn运营商, 卡顿次数比率\n"
-    sqlContext.sql(
-      """
-        |SELECT v1 AS cdn, sum(v4)/count(*) AS lag_ratio FROM
-        |    (SELECT v4, room_id, v5,
-        |    CASE
-        |        WHEN v1='bd' OR v1='baidu' THEN 'bd'
-        |        WHEN v1='' THEN 'undefined'
-        |        ELSE v1 END AS v1 FROM quanmin WHERE tag='monitor' AND room_id!=-1 AND v5>1) t
-        |GROUP BY v1 ORDER BY lag_ratio DESC
-      """.stripMargin).
+    sqlContext.sql("SELECT cdn, sum(v4)/count(*) AS lag_ratio FROM quanmin_lag GROUP BY cdn ORDER BY instr('网宿百度腾讯阿里七牛云帆金山未定义', cdn)").
       collect().foreach((row: Row) => {
       tmpString += "%s, %f\n".format(row.getString(0), row.getDouble(1))
       htmlRows +=
