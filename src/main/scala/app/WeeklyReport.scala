@@ -153,10 +153,58 @@ object WeeklyReport {
     }
     sqlContext.read.parquet(pathArray: _*).registerTempTable("quanmin_last_week")
 
-    sqlContext.sql("SELECT * FROM quanmin_this_week WHERE tag='monitor' AND room_id!=-1 AND v5>1").cache().registerTempTable("quanmin_this_week_lag")
-    sqlContext.sql("SELECT * FROM quanmin_last_week WHERE tag='monitor' AND room_id!=-1 AND v5>1").cache().registerTempTable("quanmin_last_week_lag")
-    sqlContext.sql("SELECT * FROM quanmin_this_week WHERE tag='first' AND room_id!=-1 AND v5<=10000 AND v5>0").cache().registerTempTable("quanmin_this_week_first")
-    sqlContext.sql("SELECT * FROM quanmin_last_week WHERE tag='first' AND room_id!=-1 AND v5<=10000 AND v5>0").cache().registerTempTable("quanmin_last_week_first")
+    sqlContext.sql(
+      """
+        |SELECT CASE
+        |    WHEN v1='bd' OR v1='baidu' THEN '百度'
+        |    WHEN v1='qn' THEN '七牛'
+        |    WHEN v1='tx' THEN '腾讯'
+        |    WHEN v1='al' OR v1='ali' THEN '阿里'
+        |    WHEN v1='ws' THEN '网宿'
+        |    WHEN v1='yf' THEN '云帆'
+        |    WHEN v1='js' THEN '金山'
+        |    ELSE '未定义' END AS cdn, *
+        |FROM quanmin_this_week WHERE tag='monitor' AND room_id!=-1 AND v5>1
+      """.stripMargin).cache().registerTempTable("quanmin_this_week_lag")
+    sqlContext.sql(
+      """
+        |SELECT CASE
+        |    WHEN v1='bd' OR v1='baidu' THEN '百度'
+        |    WHEN v1='qn' THEN '七牛'
+        |    WHEN v1='tx' THEN '腾讯'
+        |    WHEN v1='al' OR v1='ali' THEN '阿里'
+        |    WHEN v1='ws' THEN '网宿'
+        |    WHEN v1='yf' THEN '云帆'
+        |    WHEN v1='js' THEN '金山'
+        |    ELSE '未定义' END AS cdn, *
+        |FROM quanmin_last_week WHERE tag='monitor' AND room_id!=-1 AND v5>1
+      """.stripMargin).cache().registerTempTable("quanmin_last_week_lag")
+    sqlContext.sql(
+      """
+        |SELECT CASE
+        |    WHEN v1='bd' OR v1='baidu' THEN '百度'
+        |    WHEN v1='qn' THEN '七牛'
+        |    WHEN v1='tx' THEN '腾讯'
+        |    WHEN v1='al' OR v1='ali' THEN '阿里'
+        |    WHEN v1='ws' THEN '网宿'
+        |    WHEN v1='yf' THEN '云帆'
+        |    WHEN v1='js' THEN '金山'
+        |    ELSE '未定义' END AS cdn, *
+        |FROM quanmin_this_week WHERE tag='first' AND room_id!=-1 AND v5<=10000 AND v5>0
+      """.stripMargin).cache().registerTempTable("quanmin_this_week_first")
+    sqlContext.sql(
+      """
+        |SELECT CASE
+        |    WHEN v1='bd' OR v1='baidu' THEN '百度'
+        |    WHEN v1='qn' THEN '七牛'
+        |    WHEN v1='tx' THEN '腾讯'
+        |    WHEN v1='al' OR v1='ali' THEN '阿里'
+        |    WHEN v1='ws' THEN '网宿'
+        |    WHEN v1='yf' THEN '云帆'
+        |    WHEN v1='js' THEN '金山'
+        |    ELSE '未定义' END AS cdn, *
+        |FROM quanmin_last_week WHERE tag='first' AND room_id!=-1 AND v5<=10000 AND v5>0
+      """.stripMargin).cache().registerTempTable("quanmin_last_week_first")
     sqlContext.sql(
       """
         |SELECT province AS province2 FROM
@@ -173,31 +221,15 @@ object WeeklyReport {
         |    WHEN lag_ratio_this<lag_ratio_last THEN '↓'
         |    ELSE '' END AS diff,
         |    lag_ratio_this-lag_ratio_last AS trend FROM
-        |        (SELECT v1 AS cdn, avg(lag_ratio) AS lag_ratio_this FROM
-        |            (SELECT sum(v4)/count(*) AS lag_ratio, CASE
-        |                WHEN v1='bd' OR v1='baidu' THEN '百度'
-        |                WHEN v1='qn' THEN '七牛'
-        |                WHEN v1='tx' THEN '腾讯'
-        |                WHEN v1='al' OR v1='ali' THEN '阿里'
-        |                WHEN v1='ws' THEN '网宿'
-        |                WHEN v1='yf' THEN '云帆'
-        |                WHEN v1='js' THEN '金山'
-        |                ELSE '未定义' END AS v1
-        |            FROM quanmin_this_week_lag GROUP BY v1, day(time)) t
-        |        GROUP BY v1) t1
+        |        (SELECT cdn, avg(lag_ratio) AS lag_ratio_this FROM
+        |            (SELECT cdn, sum(v4)/count(*) AS lag_ratio
+        |            FROM quanmin_this_week_lag GROUP BY cdn, day(time)) t
+        |        GROUP BY cdn) t1
         |        JOIN
-        |        (SELECT v1 AS cdn, avg(lag_ratio) AS lag_ratio_last FROM
-        |            (SELECT sum(v4)/count(*) AS lag_ratio, CASE
-        |                WHEN v1='bd' OR v1='baidu' THEN '百度'
-        |                WHEN v1='qn' THEN '七牛'
-        |                WHEN v1='tx' THEN '腾讯'
-        |                WHEN v1='al' OR v1='ali' THEN '阿里'
-        |                WHEN v1='ws' THEN '网宿'
-        |                WHEN v1='yf' THEN '云帆'
-        |                WHEN v1='js' THEN '金山'
-        |                ELSE '未定义' END AS v1
-        |            FROM quanmin_last_week_lag GROUP BY v1, day(time)) t
-        |        GROUP BY v1) t2
+        |        (SELECT cdn, avg(lag_ratio) AS lag_ratio_last FROM
+        |            (SELECT cdn, sum(v4)/count(*) AS lag_ratio
+        |            FROM quanmin_last_week_lag GROUP BY cdn, day(time)) t
+        |        GROUP BY cdn) t2
         |        ON t1.cdn=t2.cdn
         |ORDER BY instr('网宿百度腾讯阿里七牛云帆金山未定义', t1.cdn)
       """.stripMargin).
@@ -346,33 +378,17 @@ object WeeklyReport {
     htmlRows(5) = ""
     tmpArray1 = sqlContext.sql(
       """
-        |SELECT v1 AS cdn, avg(first) AS first FROM
-        |    (SELECT avg(v5) AS first, CASE
-        |        WHEN v1='bd' OR v1='baidu' THEN '百度'
-        |        WHEN v1='qn' THEN '七牛'
-        |        WHEN v1='tx' THEN '腾讯'
-        |        WHEN v1='al' OR v1='ali' THEN '阿里'
-        |        WHEN v1='ws' THEN '网宿'
-        |        WHEN v1='yf' THEN '云帆'
-        |        WHEN v1='js' THEN '金山'
-        |        ELSE '未定义' END AS v1
-        |    FROM quanmin_this_week_first WHERE platform=5 OR platform=14 GROUP BY v1, day(time)) t
-        |GROUP BY v1 ORDER BY instr('网宿百度腾讯阿里七牛云帆金山未定义', cdn)
+        |SELECT cdn, avg(first) AS first FROM
+        |    (SELECT cdn, avg(v5) AS first
+        |    FROM quanmin_this_week_first WHERE platform=5 OR platform=14 GROUP BY cdn, day(time)) t
+        |GROUP BY cdn ORDER BY instr('网宿百度腾讯阿里七牛云帆金山未定义', cdn)
       """.stripMargin).collect()
     tmpArray2 = sqlContext.sql(
       """
-        |SELECT v1 AS cdn, avg(first) AS first FROM
-        |    (SELECT avg(v5) AS first, CASE
-        |        WHEN v1='bd' OR v1='baidu' THEN '百度'
-        |        WHEN v1='qn' THEN '七牛'
-        |        WHEN v1='tx' THEN '腾讯'
-        |        WHEN v1='al' OR v1='ali' THEN '阿里'
-        |        WHEN v1='ws' THEN '网宿'
-        |        WHEN v1='yf' THEN '云帆'
-        |        WHEN v1='js' THEN '金山'
-        |        ELSE '未定义' END AS v1
-        |    FROM quanmin_this_week_first WHERE platform!=5 AND platform!=14 GROUP BY v1, day(time)) t
-        |GROUP BY v1 ORDER BY instr('网宿百度腾讯阿里七牛云帆金山未定义', cdn)
+        |SELECT cdn, avg(first) AS first FROM
+        |    (SELECT cdn, avg(v5) AS first
+        |    FROM quanmin_this_week_first WHERE platform!=5 AND platform!=14 GROUP BY cdn, day(time)) t
+        |GROUP BY cdn ORDER BY instr('网宿百度腾讯阿里七牛云帆金山未定义', cdn)
       """.stripMargin).collect()
     for(i <- tmpArray1.indices) {
       tmpString += "%s, %s, %f, %s, %f\n".format(tmpArray1(i).getString(0), "PC端", tmpArray1(i).getDouble(1), "非PC端", tmpArray2(i).getDouble(1))
@@ -395,19 +411,10 @@ object WeeklyReport {
       """
         |SELECT * FROM
         |    (SELECT row_number() OVER (PARTITION BY cdn ORDER BY lag_ratio) AS row_number, * FROM
-        |        (SELECT v1 AS cdn, province, avg(lag_ratio) AS lag_ratio FROM
-        |            (SELECT province, sum(v4)/count(*) AS lag_ratio,
-        |            CASE
-        |                WHEN v1='bd' OR v1='baidu' THEN '百度'
-        |                WHEN v1='qn' THEN '七牛'
-        |                WHEN v1='tx' THEN '腾讯'
-        |                WHEN v1='al' OR v1='ali' THEN '阿里'
-        |                WHEN v1='ws' THEN '网宿'
-        |                WHEN v1='yf' THEN '云帆'
-        |                WHEN v1='js' THEN '金山'
-        |                ELSE '未定义' END AS v1
-        |            FROM quanmin_this_week_lag WHERE country='中国' AND province!='中国' GROUP BY day(time), v1, province) t
-        |        GROUP BY province, v1
+        |        (SELECT cdn, province, avg(lag_ratio) AS lag_ratio FROM
+        |            (SELECT cdn, province, sum(v4)/count(*) AS lag_ratio
+        |            FROM quanmin_this_week_lag WHERE country='中国' AND province!='中国' GROUP BY day(time), cdn, province) t
+        |        GROUP BY province, cdn
         |        ) t1
         |        INNER JOIN
         |        quanmin_valid_province
@@ -435,19 +442,10 @@ object WeeklyReport {
       """
         |SELECT * FROM
         |    (SELECT row_number() OVER (PARTITION BY cdn ORDER BY lag_ratio DESC) AS row_number, * FROM
-        |        (SELECT v1 AS cdn, province, avg(lag_ratio) AS lag_ratio FROM
-        |            (SELECT province, sum(v4)/count(*) AS lag_ratio,
-        |            CASE
-        |                WHEN v1='bd' OR v1='baidu' THEN '百度'
-        |                WHEN v1='qn' THEN '七牛'
-        |                WHEN v1='tx' THEN '腾讯'
-        |                WHEN v1='al' OR v1='ali' THEN '阿里'
-        |                WHEN v1='ws' THEN '网宿'
-        |                WHEN v1='yf' THEN '云帆'
-        |                WHEN v1='js' THEN '金山'
-        |                ELSE '未定义' END AS v1
-        |            FROM quanmin_this_week_lag WHERE country='中国' AND province!='中国' GROUP BY day(time), v1, province) t
-        |        WHERE v1!='其他' GROUP BY province, v1
+        |        (SELECT cdn, province, avg(lag_ratio) AS lag_ratio FROM
+        |            (SELECT cdn, province, sum(v4)/count(*) AS lag_ratio
+        |            FROM quanmin_this_week_lag WHERE country='中国' AND province!='中国' GROUP BY day(time), cdn, province) t
+        |        GROUP BY province, cdn
         |        ) t1
         |        INNER JOIN
         |        quanmin_valid_province
