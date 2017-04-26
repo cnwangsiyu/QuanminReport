@@ -128,7 +128,7 @@ object WeeklyReport {
         |%s
         |</table>
         |
-        |<h4>卡顿次数比率-全天分省运营商卡顿率：</h4>
+        |<h4>卡顿次数比率-本周分省运营商卡顿率：</h4>
         |<table border="1">
         |<tr>
         |  <td>cdn厂商</td>
