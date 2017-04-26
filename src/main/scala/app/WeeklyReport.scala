@@ -32,20 +32,6 @@ object WeeklyReport {
         |
         |<body>
         |
-        |<h4>卡顿率-各家卡顿率：</h4>
-        |<table border="1">
-        |<tr>
-        |  <td></td>
-        |  <td>本周卡顿率</td>
-        |  <td>上周卡顿率</td>
-        |  <td>差异</td>
-        |  <td>趋势</td>
-        |</tr>
-        |%s
-        |</table>
-        |
-        |<br/>
-        |
         |<h4>卡顿率-平台总卡顿率：</h4>
         |<table border="1">
         |<tr>
@@ -64,6 +50,28 @@ object WeeklyReport {
         |  <td>上周卡顿率</td>
         |  <td>差异</td>
         |  <td>趋势</td>
+        |</tr>
+        |%s
+        |</table>
+        |
+        |<h4>卡顿率-各家卡顿率：</h4>
+        |<table border="1">
+        |<tr>
+        |  <td></td>
+        |  <td>本周卡顿率</td>
+        |  <td>上周卡顿率</td>
+        |  <td>差异</td>
+        |  <td>趋势</td>
+        |</tr>
+        |%s
+        |</table>
+        |
+        |<h4>卡顿次数比率-本周各运营商卡顿率：</h4>
+        |<table border="1">
+        |<tr>
+        |  <td>cdn厂商</td>
+        |  <td>运营商</td>
+        |  <td>卡顿次数比率</td>
         |</tr>
         |%s
         |</table>
@@ -94,18 +102,6 @@ object WeeklyReport {
         |%s
         |</table>
         |
-        |<h4>各家首屏数据：</h4>
-        |<table border="1">
-        |<tr>
-        |  <td>cdn</td>
-        |  <td>平台</td>
-        |  <td>首屏时间</td>
-        |  <td>平台</td>
-        |  <td>首屏时间</td>
-        |</tr>
-        |%s
-        |</table>
-        |
         |<h4>各家CDN卡顿率-省份最优top5排名：</h4>
         |<table border="1">
         |<tr>
@@ -128,12 +124,14 @@ object WeeklyReport {
         |%s
         |</table>
         |
-        |<h4>卡顿次数比率-本周分省运营商卡顿率：</h4>
+        |<h4>各家首屏数据：</h4>
         |<table border="1">
         |<tr>
-        |  <td>cdn厂商</td>
-        |  <td>运营商</td>
-        |  <td>卡顿次数比率</td>
+        |  <td>cdn</td>
+        |  <td>平台</td>
+        |  <td>首屏时间</td>
+        |  <td>平台</td>
+        |  <td>首屏时间</td>
         |</tr>
         |%s
         |</table>
@@ -222,8 +220,64 @@ object WeeklyReport {
         |WHERE total_count>100000
       """.stripMargin).cache().registerTempTable("quanmin_valid_province")
 
-    tmpString = ", 本周卡顿率, 上周卡顿率, 差异, 趋势\n"
+    tmpString = "本周卡顿率, 上周卡顿率, 差异, 趋势\n"
     htmlRows(0) = ""
+    sqlContext.sql(
+      """
+        |SELECT *, CASE
+        |    WHEN lag_ratio_this>lag_ratio_last THEN '↑'
+        |    WHEN lag_ratio_this<lag_ratio_last THEN '↓'
+        |    ELSE '' END AS diff, lag_ratio_this-lag_ratio_last AS trend FROM
+        |        (SELECT avg(lag_ratio) AS lag_ratio_this FROM
+        |            (SELECT sum(v4)/count(*) AS lag_ratio FROM quanmin_this_week_lag GROUP BY day(time)) t) t1
+        |        JOIN
+        |        (SELECT avg(lag_ratio) AS lag_ratio_last FROM
+        |            (SELECT sum(v4)/count(*) AS lag_ratio FROM quanmin_last_week_lag GROUP BY day(time)) t) t2
+      """.stripMargin).
+      collect().foreach((row: Row) => {
+      tmpString += "%f, %f, %s, %f\n".format(row.getDouble(0), row.getDouble(1), row.getString(2), row.getDouble(3))
+      htmlRows(0) +=
+        """
+          |<tr>
+          |  <td>%f</td>
+          |  <td>%f</td>
+          |  <td>%s</td>
+          |  <td>%f</td>
+          |</tr>
+        """.stripMargin.format(row.getDouble(0), row.getDouble(1), row.getString(2), row.getDouble(3))
+    })
+    attachmentStringsToSend.update("卡顿率-平台总卡顿率（%s）".format(dateString), tmpString)
+
+    tmpString = "本周卡顿率, 上周卡顿率, 差异, 趋势\n"
+    htmlRows(1) = ""
+    sqlContext.sql(
+      """
+        |SELECT *, CASE
+        |    WHEN lag_ratio_this>lag_ratio_last THEN '↑'
+        |    WHEN lag_ratio_this<lag_ratio_last THEN '↓'
+        |    ELSE '' END AS diff, lag_ratio_this-lag_ratio_last AS trend FROM
+        |        (SELECT avg(lag_ratio) AS lag_ratio_this FROM
+        |            (SELECT sum(v4)/count(*) AS lag_ratio FROM quanmin_this_week_lag WHERE isp='教育网' GROUP BY day(time)) t) t1
+        |        JOIN
+        |        (SELECT avg(lag_ratio) AS lag_ratio_last FROM
+        |            (SELECT sum(v4)/count(*) AS lag_ratio FROM quanmin_last_week_lag WHERE isp='教育网' GROUP BY day(time)) t) t2
+      """.stripMargin).
+      collect().foreach((row: Row) => {
+      tmpString += "%f, %f, %s, %f\n".format(row.getDouble(0), row.getDouble(1), row.getString(2), row.getDouble(3))
+      htmlRows(1) +=
+        """
+          |<tr>
+          |  <td>%f</td>
+          |  <td>%f</td>
+          |  <td>%s</td>
+          |  <td>%f</td>
+          |</tr>
+        """.stripMargin.format(row.getDouble(0), row.getDouble(1), row.getString(2), row.getDouble(3))
+    })
+    attachmentStringsToSend.update("卡顿率-平台教育网总卡顿率（%s）".format(dateString), tmpString)
+
+    tmpString = ", 本周卡顿率, 上周卡顿率, 差异, 趋势\n"
+    htmlRows(2) = ""
     sqlContext.sql(
       """
         |SELECT t1.cdn, lag_ratio_this, lag_ratio_last, CASE
@@ -245,7 +299,7 @@ object WeeklyReport {
       """.stripMargin).
       collect().foreach((row: Row) => {
       tmpString += "%s, %f, %f, %s, %f\n".format(row.getString(0), row.getDouble(1), row.getDouble(2), row.getString(3), row.getDouble(4))
-      htmlRows(0) +=
+      htmlRows(2) +=
         """
           |<tr>
           |  <td>%s</td>
@@ -258,64 +312,33 @@ object WeeklyReport {
     })
     attachmentStringsToSend.update("卡顿率-各家卡顿率（%s）".format(dateString), tmpString)
 
-    tmpString = "本周卡顿率, 上周卡顿率, 差异, 趋势\n"
-    htmlRows(1) = ""
+    tmpString = "cdn厂商, 运营商, 卡顿次数比率\n"
+    htmlRows(3) = ""
     sqlContext.sql(
       """
-        |SELECT *, CASE
-        |    WHEN lag_ratio_this>lag_ratio_last THEN '↑'
-        |    WHEN lag_ratio_this<lag_ratio_last THEN '↓'
-        |    ELSE '' END AS diff, lag_ratio_this-lag_ratio_last AS trend FROM
-        |        (SELECT avg(lag_ratio) AS lag_ratio_this FROM
-        |            (SELECT sum(v4)/count(*) AS lag_ratio FROM quanmin_this_week_lag GROUP BY day(time)) t) t1
-        |        JOIN
-        |        (SELECT avg(lag_ratio) AS lag_ratio_last FROM
-        |            (SELECT sum(v4)/count(*) AS lag_ratio FROM quanmin_last_week_lag GROUP BY day(time)) t) t2
+        |SELECT cdn, isp, avg(lag_ratio) AS lag_ratio FROM
+        |    (SELECT cdn, CASE
+        |        WHEN isp='电信' OR isp='移动' OR isp='联通' THEN '三大运营商'
+        |        WHEN isp='教育网' THEN '教育网'
+        |        ELSE '其他' END AS isp, sum(v4)/count(*) AS lag_ratio
+        |    FROM quanmin_this_week_lag GROUP BY day(time), cdn, isp) t
+        |GROUP BY cdn, isp ORDER BY instr('三大运营商教育网其他', isp), instr('网宿百度腾讯阿里七牛云帆金山未定义', cdn)
       """.stripMargin).
       collect().foreach((row: Row) => {
-      tmpString += "%f, %f, %s, %f\n".format(row.getDouble(0), row.getDouble(1), row.getString(2), row.getDouble(3))
-      htmlRows(1) +=
+      tmpString += "%s, %s, %f\n".format(row.getString(0), row.getString(1), row.getDouble(2))
+      htmlRows(3) +=
         """
           |<tr>
-          |  <td>%f</td>
-          |  <td>%f</td>
+          |  <td>%s</td>
           |  <td>%s</td>
           |  <td>%f</td>
           |</tr>
-        """.stripMargin.format(row.getDouble(0), row.getDouble(1), row.getString(2), row.getDouble(3))
+        """.stripMargin.format(row.getString(0), row.getString(1), row.getDouble(2))
     })
-    attachmentStringsToSend.update("卡顿率-平台总卡顿率（%s）".format(dateString), tmpString)
-
-    tmpString = "本周卡顿率, 上周卡顿率, 差异, 趋势\n"
-    htmlRows(2) = ""
-    sqlContext.sql(
-      """
-        |SELECT *, CASE
-        |    WHEN lag_ratio_this>lag_ratio_last THEN '↑'
-        |    WHEN lag_ratio_this<lag_ratio_last THEN '↓'
-        |    ELSE '' END AS diff, lag_ratio_this-lag_ratio_last AS trend FROM
-        |        (SELECT avg(lag_ratio) AS lag_ratio_this FROM
-        |            (SELECT sum(v4)/count(*) AS lag_ratio FROM quanmin_this_week_lag WHERE isp='教育网' GROUP BY day(time)) t) t1
-        |        JOIN
-        |        (SELECT avg(lag_ratio) AS lag_ratio_last FROM
-        |            (SELECT sum(v4)/count(*) AS lag_ratio FROM quanmin_last_week_lag WHERE isp='教育网' GROUP BY day(time)) t) t2
-      """.stripMargin).
-      collect().foreach((row: Row) => {
-      tmpString += "%f, %f, %s, %f\n".format(row.getDouble(0), row.getDouble(1), row.getString(2), row.getDouble(3))
-      htmlRows(2) +=
-        """
-          |<tr>
-          |  <td>%f</td>
-          |  <td>%f</td>
-          |  <td>%s</td>
-          |  <td>%f</td>
-          |</tr>
-        """.stripMargin.format(row.getDouble(0), row.getDouble(1), row.getString(2), row.getDouble(3))
-    })
-    attachmentStringsToSend.update("卡顿率-平台教育网总卡顿率（%s）".format(dateString), tmpString)
+    attachmentStringsToSend.update("卡顿次数比率-本周各运营商卡顿率(%s)".format(dateString), tmpString)
 
     tmpString = "省份, 运营商, 卡顿率, 省份, 运营商, 卡顿率\n"
-    htmlRows(3) = ""
+    htmlRows(4) = ""
     tmpArray1 = sqlContext.sql(
       """
         |SELECT province, avg(lag_ratio) AS lag_ratio FROM
@@ -330,7 +353,7 @@ object WeeklyReport {
       """.stripMargin).collect()
     for(i <- tmpArray1.indices) {
       tmpString += "%s, %s, %f, %s, %s, %f\n".format(tmpArray1(i).getString(0), "ALL", tmpArray1(i).getDouble(1), tmpArray2(i).getString(0), "教育网", tmpArray2(i).getDouble(1))
-      htmlRows(3) +=
+      htmlRows(4) +=
         """
           |<tr>
           |  <td>%s</td>
@@ -345,7 +368,7 @@ object WeeklyReport {
     attachmentStringsToSend.update("省份卡顿率排名-最差TOP5（%s）".format(dateString), tmpString)
 
     tmpString = "省份, 运营商, 卡顿率, 省份, 运营商, 卡顿率\n"
-    htmlRows(4) = ""
+    htmlRows(5) = ""
     tmpArray1 = sqlContext.sql(
       """
         |SELECT * FROM
@@ -370,7 +393,7 @@ object WeeklyReport {
       """.stripMargin).collect()
     for(i <- tmpArray1.indices) {
       tmpString += "%s, %s, %f, %s, %s, %f\n".format(tmpArray1(i).getString(0), "ALL", tmpArray1(i).getDouble(1), tmpArray2(i).getString(0), "教育网", tmpArray2(i).getDouble(1))
-      htmlRows(4) +=
+      htmlRows(5) +=
         """
           |<tr>
           |  <td>%s</td>
@@ -383,37 +406,6 @@ object WeeklyReport {
         """.stripMargin.format(tmpArray1(i).getString(0), "ALL", tmpArray1(i).getDouble(1), tmpArray2(i).getString(0), "教育网", tmpArray2(i).getDouble(1))
     }
     attachmentStringsToSend.update("省份卡顿率排名-最优TOP5（%s）".format(dateString), tmpString)
-
-    tmpString = "cdn, 平台, 首屏时间, 平台, 首屏时间\n"
-    htmlRows(5) = ""
-    tmpArray1 = sqlContext.sql(
-      """
-        |SELECT cdn, avg(first) AS first FROM
-        |    (SELECT cdn, avg(v5) AS first
-        |    FROM quanmin_this_week_first WHERE platform=5 OR platform=14 GROUP BY cdn, day(time)) t
-        |GROUP BY cdn ORDER BY instr('网宿百度腾讯阿里七牛云帆金山未定义', cdn)
-      """.stripMargin).collect()
-    tmpArray2 = sqlContext.sql(
-      """
-        |SELECT cdn, avg(first) AS first FROM
-        |    (SELECT cdn, avg(v5) AS first
-        |    FROM quanmin_this_week_first WHERE platform!=5 AND platform!=14 GROUP BY cdn, day(time)) t
-        |GROUP BY cdn ORDER BY instr('网宿百度腾讯阿里七牛云帆金山未定义', cdn)
-      """.stripMargin).collect()
-    for(i <- tmpArray1.indices) {
-      tmpString += "%s, %s, %f, %s, %f\n".format(tmpArray1(i).getString(0), "PC端", tmpArray1(i).getDouble(1), "非PC端", tmpArray2(i).getDouble(1))
-      htmlRows(5) +=
-        """
-          |<tr>
-          |  <td>%s</td>
-          |  <td>%s</td>
-          |  <td>%f</td>
-          |  <td>%s</td>
-          |  <td>%f</td>
-          |</tr>
-        """.stripMargin.format(tmpArray1(i).getString(0), "PC端", tmpArray1(i).getDouble(1), "非PC端", tmpArray2(i).getDouble(1))
-    }
-    attachmentStringsToSend.update("各家首屏数据（%s）".format(dateString), tmpString)
 
     tmpString = "排名, cdn厂商, 省份, 本周卡顿率\n"
     htmlRows(6) = ""
@@ -477,30 +469,36 @@ object WeeklyReport {
     })
     attachmentStringsToSend.update("各家CDN卡顿率-省份最差top5排名", tmpString)
 
-    tmpString = "cdn厂商, 运营商, 卡顿次数比率\n"
+    tmpString = "cdn, 平台, 首屏时间, 平台, 首屏时间\n"
     htmlRows(8) = ""
-    sqlContext.sql(
+    tmpArray1 = sqlContext.sql(
       """
-        |SELECT cdn, isp, avg(lag_ratio) AS lag_ratio FROM
-        |    (SELECT cdn, CASE
-        |        WHEN isp='电信' OR isp='移动' OR isp='联通' THEN '三大运营商'
-        |        WHEN isp='教育网' THEN '教育网'
-        |        ELSE '其他' END AS isp, sum(v4)/count(*) AS lag_ratio
-        |    FROM quanmin_this_week_lag GROUP BY day(time), cdn, isp) t
-        |GROUP BY cdn, isp ORDER BY instr('三大运营商教育网其他', isp), instr('网宿百度腾讯阿里七牛云帆金山未定义', cdn)
-      """.stripMargin).
-      collect().foreach((row: Row) => {
-      tmpString += "%s, %s, %f\n".format(row.getString(0), row.getString(1), row.getDouble(2))
+        |SELECT cdn, avg(first) AS first FROM
+        |    (SELECT cdn, avg(v5) AS first
+        |    FROM quanmin_this_week_first WHERE platform=5 OR platform=14 GROUP BY cdn, day(time)) t
+        |GROUP BY cdn ORDER BY instr('网宿百度腾讯阿里七牛云帆金山未定义', cdn)
+      """.stripMargin).collect()
+    tmpArray2 = sqlContext.sql(
+      """
+        |SELECT cdn, avg(first) AS first FROM
+        |    (SELECT cdn, avg(v5) AS first
+        |    FROM quanmin_this_week_first WHERE platform!=5 AND platform!=14 GROUP BY cdn, day(time)) t
+        |GROUP BY cdn ORDER BY instr('网宿百度腾讯阿里七牛云帆金山未定义', cdn)
+      """.stripMargin).collect()
+    for(i <- tmpArray1.indices) {
+      tmpString += "%s, %s, %f, %s, %f\n".format(tmpArray1(i).getString(0), "PC端", tmpArray1(i).getDouble(1), "非PC端", tmpArray2(i).getDouble(1))
       htmlRows(8) +=
         """
           |<tr>
           |  <td>%s</td>
           |  <td>%s</td>
           |  <td>%f</td>
+          |  <td>%s</td>
+          |  <td>%f</td>
           |</tr>
-        """.stripMargin.format(row.getString(0), row.getString(1), row.getDouble(2))
-    })
-    attachmentStringsToSend.update("卡顿次数比率-本周各运营商卡顿率", tmpString)
+        """.stripMargin.format(tmpArray1(i).getString(0), "PC端", tmpArray1(i).getDouble(1), "非PC端", tmpArray2(i).getDouble(1))
+    }
+    attachmentStringsToSend.update("各家首屏数据（%s）".format(dateString), tmpString)
 
     try {
       val email = new HtmlMultiPartEmail()
