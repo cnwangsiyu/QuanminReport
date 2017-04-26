@@ -128,10 +128,20 @@ object WeeklyReport {
         |%s
         |</table>
         |
+        |<h4>卡顿次数比率-全天分省运营商卡顿率：</h4>
+        |<table border="1">
+        |<tr>
+        |  <td>cdn厂商</td>
+        |  <td>运营商</td>
+        |  <td>卡顿次数比率</td>
+        |</tr>
+        |%s
+        |</table>
+        |
         |</body>
         |</html>
       """.stripMargin
-    var htmlRows = new Array[String](8)
+    var htmlRows = new Array[String](9)
 
     tmpCal.add(Calendar.DATE, -7)
     dateString += dateFormat.format(tmpCal.getTime)
@@ -466,6 +476,31 @@ object WeeklyReport {
         """.stripMargin.format(row.getInt(0), row.getString(1), row.getString(2), row.getDouble(3))
     })
     attachmentStringsToSend.update("各家CDN卡顿率-省份最差top5排名", tmpString)
+
+    tmpString = "cdn厂商, 运营商, 卡顿次数比率\n"
+    htmlRows(8) = ""
+    sqlContext.sql(
+      """
+        |SELECT cdn, isp, avg(lag_ratio) AS lag_ratio FROM
+        |    (SELECT cdn, CASE
+        |        WHEN isp='电信' OR isp='移动' OR isp='联通' THEN '三大运营商'
+        |        WHEN isp='教育网' THEN '教育网'
+        |        ELSE '其他' END AS isp, sum(v4)/count(*) AS lag_ratio
+        |    FROM quanmin_this_week_lag GROUP BY day(time), cdn, isp) t
+        |GROUP BY cdn, isp ORDER BY instr('三大运营商教育网其他', isp), instr('网宿百度腾讯阿里七牛云帆金山未定义', cdn)
+      """.stripMargin).
+      collect().foreach((row: Row) => {
+      tmpString += "%s, %s, %f\n".format(row.getString(0), row.getString(1), row.getDouble(2))
+      htmlRows(8) +=
+        """
+          |<tr>
+          |  <td>%s</td>
+          |  <td>%s</td>
+          |  <td>%f</td>
+          |</tr>
+        """.stripMargin.format(row.getString(0), row.getString(1), row.getDouble(2))
+    })
+    attachmentStringsToSend.update("卡顿次数比率-本周各运营商卡顿率", tmpString)
 
     try {
       val email = new HtmlMultiPartEmail()
