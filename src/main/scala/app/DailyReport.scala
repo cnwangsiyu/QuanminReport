@@ -137,6 +137,22 @@ object DailyReport {
     })
     attachmentStringsToSend.update("[%s]卡顿人数比率-晚高峰".format(yesterday), tmpString)
 
+    tmpString = "cdn厂商, 运营商, 卡顿次数比率\n"
+    sqlContext.sql(
+      """
+        |SELECT cdn, isp, sum(v4)/count(*) AS lag_ratio FROM
+        |    (SELECT cdn, CASE
+        |        WHEN isp='电信' OR isp='移动' OR isp='联通' THEN '三大运营商'
+        |        WHEN isp='教育网' THEN '教育网'
+        |        ELSE '其他' END AS isp, v4
+        |    FROM quanmin_lag) t
+        |GROUP BY cdn, isp ORDER BY instr('三大运营商教育网其他', isp), instr('网宿百度腾讯阿里七牛云帆金山未定义', cdn)
+      """.stripMargin).
+      collect().foreach((row: Row) => {
+      tmpString += "%s, %s, %f\n".format(row.getString(0), row.getString(1), row.getDouble(2))
+    })
+    attachmentStringsToSend.update("[%s]卡顿次数比率-全天各运营商卡顿率".format(yesterday), tmpString)
+
     val tmpList = mutable.MutableList[mutable.MutableList[String]]()
     var previousCdn = ""
     var maxLength = 0
