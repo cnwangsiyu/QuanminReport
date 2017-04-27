@@ -17,6 +17,8 @@ object WeeklyReport {
     val sc = new SparkContext(conf)
     val sqlContext = new HiveContext(sc)
 
+
+
     val dateFormat = new SimpleDateFormat("yyyy-MM-dd")
     val cal = Calendar.getInstance
     val pathArray = new Array[String](7)
@@ -177,6 +179,10 @@ object WeeklyReport {
       println(pathArray(i))
     }
     sqlContext.read.parquet(pathArray: _*).registerTempTable("quanmin_last_week")
+
+
+
+
 
     sqlContext.sql(
       """
