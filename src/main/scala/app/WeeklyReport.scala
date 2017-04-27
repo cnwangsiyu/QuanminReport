@@ -72,9 +72,11 @@ object WeeklyReport {
         |<tr>
         |  <td>cdn</td>
         |  <td>平台</td>
-        |  <td>首屏时间</td>
+        |  <td>卡顿率</td>
         |  <td>平台</td>
-        |  <td>首屏时间</td>
+        |  <td>卡顿率</td>
+        |  <td>平台</td>
+        |  <td>卡顿率</td>
         |</tr>
         |%s
         |</table>
@@ -93,6 +95,8 @@ object WeeklyReport {
         |<table border="1">
         |<tr>
         |  <td>cdn</td>
+        |  <td>平台</td>
+        |  <td>首屏时间</td>
         |  <td>平台</td>
         |  <td>首屏时间</td>
         |  <td>平台</td>
