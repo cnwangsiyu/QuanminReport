@@ -325,7 +325,7 @@ object WeeklyReport {
     })
     attachmentStringsToSend.update("卡顿率-各家卡顿率（%s）".format(dateString), tmpString)
 
-    tmpString = "cdn, 平台, 首屏时间, 平台, 首屏时间, 平台, 首屏时间\n"
+    tmpString = "cdn, 平台, 卡顿率, 平台, 卡顿率, 平台, 卡顿率\n"
     htmlRows(3) = ""
     tmpArray1 = sqlContext.sql(
       """
