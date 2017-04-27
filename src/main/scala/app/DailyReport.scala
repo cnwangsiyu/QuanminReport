@@ -290,7 +290,7 @@ object DailyReport {
           |  <td>%s</td>
           |  <td>%f</td>
           |</tr>
-        """.stripMargin.format(row.getString(1), row.getString(2), row.getDouble(3))
+        """.stripMargin.format(row.getString(1), getDeviceName(row.getLong(2)), row.getDouble(3))
     })
     attachmentStringsToSend.update("[%s]首屏数据".format(yesterday), tmpString)
 
