@@ -340,7 +340,7 @@ object DailyReport {
           |</tr>
         """.stripMargin.format(tmpArray1(i).getString(0), "PC端", tmpArray1(i).getDouble(1), "Android端", tmpArray2(i).getDouble(1), "iOS端", tmpArray3(i).getDouble(1))
     }
-    attachmentStringsToSend.update("[%s]卡顿率-各家分平台卡顿率".format(yesterday), tmpString)
+//    attachmentStringsToSend.update("[%s]卡顿率-各家分平台卡顿率".format(yesterday), tmpString)
 
     tmpString = "cdn, 平台, 首屏时间, 平台, 首屏时间, 平台, 首屏时间\n"
     var htmlRows4 = ""
@@ -377,7 +377,7 @@ object DailyReport {
           |</tr>
         """.stripMargin.format(tmpArray1(i).getString(0), "PC端", tmpArray1(i).getDouble(1), "Android端", tmpArray2(i).getDouble(1), "iOS端", tmpArray3(i).getDouble(1))
     }
-    attachmentStringsToSend.update("[%s]首屏数据".format(yesterday), tmpString)
+//    attachmentStringsToSend.update("[%s]首屏数据".format(yesterday), tmpString)
 
     htmlTemplateString = htmlTemplateString.format(totalRatio, htmlRows1, htmlRows2, htmlRows3, htmlRows4)
 
