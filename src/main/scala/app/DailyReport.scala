@@ -69,6 +69,16 @@ object DailyReport {
         |%s
         |</table>
         |
+        |<h4>首屏数据：</h4>
+        |<table border="1">
+        |<tr>
+        |  <td>cdn厂商</td>
+        |  <td>终端类型</td>
+        |  <td>首屏时间</td>
+        |</tr>
+        |%s
+        |</table>
+        |
         |</body>
         |</html>
       """.stripMargin
@@ -103,6 +113,23 @@ object DailyReport {
         |    ELSE platform END AS platform1, *
         |FROM quanmin_raw WHERE tag='monitor' AND room_id!=-1 AND v5>1
       """.stripMargin).cache().registerTempTable("quanmin_lag")
+
+    sqlContext.sql(
+      """
+        |SELECT CASE
+        |    WHEN v1='bd' OR v1='baidu' THEN '百度'
+        |    WHEN v1='qn' THEN '七牛'
+        |    WHEN v1='tx' THEN '腾讯'
+        |    WHEN v1='al' OR v1='ali' THEN '阿里'
+        |    WHEN v1='ws' THEN '网宿'
+        |    WHEN v1='yf' THEN '云帆'
+        |    WHEN v1='js' THEN '金山'
+        |    ELSE '未定义' END AS cdn,
+        |CASE
+        |    WHEN platform=14 THEN 5
+        |    ELSE platform END AS platform1, *
+        |FROM quanmin_raw WHERE tag='first' AND room_id!=-1 AND v5<=10000 AND v5>0
+      """.stripMargin).cache().registerTempTable("quanmin_first")
 
     tmpString = "序号, cdn运营商, 终端类型, 卡顿总次数, 总请求数, 卡顿次数比率\n"
     sqlContext.sql("SELECT row_number() OVER (ORDER BY instr('网宿百度腾讯阿里七牛云帆金山未定义', cdn), platform1) AS row_number, cdn, platform1, sum(v4) AS lag_count, count(v4) AS total_count, sum(v4)/count(v4) AS lag_ratio FROM quanmin_lag GROUP BY cdn, platform1").
@@ -251,7 +278,23 @@ object DailyReport {
     })
     attachmentStringsToSend.update("[%s]卡顿次数比率-全天各运营商卡顿率".format(yesterday), tmpString)
 
-    htmlTemplateString = htmlTemplateString.format(totalRatio, htmlRows1, htmlRows2)
+    var htmlRows3 = ""
+    tmpString = "序号, cdn运营商, 终端类型, 首屏时间\n"
+    sqlContext.sql("SELECT row_number() OVER (ORDER BY instr('网宿百度腾讯阿里七牛云帆金山未定义', cdn), platform1) AS row_number, cdn, platform1, avg(v5) AS first FROM quanmin_first GROUP BY cdn, platform1").
+      collect().foreach((row: Row) => {
+      tmpString += "%d, %s, %s, %f\n".format(row.getInt(0), row.getString(1), getDeviceName(row.getLong(2)), row.getDouble(3))
+      htmlRows3 +=
+        """
+          |<tr>
+          |  <td>%s</td>
+          |  <td>%s</td>
+          |  <td>%f</td>
+          |</tr>
+        """.stripMargin.format(row.getString(1), row.getString(2), row.getDouble(3))
+    })
+    attachmentStringsToSend.update("[%s]首屏数据".format(yesterday), tmpString)
+
+    htmlTemplateString = htmlTemplateString.format(totalRatio, htmlRows1, htmlRows2, htmlRows3)
 
     try {
       val email = new HtmlMultiPartEmail()
