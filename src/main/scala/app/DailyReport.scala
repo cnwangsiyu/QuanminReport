@@ -34,6 +34,8 @@ object DailyReport {
 
     sqlContext.udf.register("myOrAgg", new MyOrAgg)
 
+
+
     var attachmentStringsToSend = scala.collection.mutable.Map[String, String]()
     var tmpString = ""
     var htmlTemplateString =
@@ -69,10 +71,28 @@ object DailyReport {
         |%s
         |</table>
         |
+        |<h4>卡顿率-各家分平台卡顿率：</h4>
+        |<table border="1">
+        |<tr>
+        |  <td>cdn厂商</td>
+        |  <td>终端类型</td>
+        |  <td>卡顿率</td>
+        |  <td>终端类型</td>
+        |  <td>卡顿率</td>
+        |  <td>终端类型</td>
+        |  <td>卡顿率</td>
+        |</tr>
+        |%s
+        |</table>
+        |
         |<h4>首屏数据：</h4>
         |<table border="1">
         |<tr>
         |  <td>cdn厂商</td>
+        |  <td>终端类型</td>
+        |  <td>首屏时间</td>
+        |  <td>终端类型</td>
+        |  <td>首屏时间</td>
         |  <td>终端类型</td>
         |  <td>首屏时间</td>
         |</tr>
@@ -94,8 +114,13 @@ object DailyReport {
 
     val dataPath = "qiniu://quanmin2/export_%s-*".format(yesterday)
     val quanmin = sqlContext.read.parquet(dataPath)
+    var tmpArray1:Array[Row] = Array()
+    var tmpArray2:Array[Row] = Array()
+    var tmpArray3:Array[Row] = Array()
     quanmin.printSchema()
     quanmin.registerTempTable("quanmin_raw")
+
+
 
     sqlContext.sql(
       """
@@ -130,6 +155,8 @@ object DailyReport {
         |    ELSE platform END AS platform1, *
         |FROM quanmin_raw WHERE tag='first' AND room_id!=-1 AND v5<=10000 AND v5>0
       """.stripMargin).cache().registerTempTable("quanmin_first")
+
+
 
     tmpString = "序号, cdn运营商, 终端类型, 卡顿总次数, 总请求数, 卡顿次数比率\n"
     sqlContext.sql("SELECT row_number() OVER (ORDER BY instr('网宿百度腾讯阿里七牛云帆金山未定义', cdn), platform1) AS row_number, cdn, platform1, sum(v4) AS lag_count, count(v4) AS total_count, sum(v4)/count(v4) AS lag_ratio FROM quanmin_lag GROUP BY cdn, platform1").
@@ -278,23 +305,81 @@ object DailyReport {
     })
     attachmentStringsToSend.update("[%s]卡顿次数比率-全天各运营商卡顿率".format(yesterday), tmpString)
 
+    tmpString = "cdn, 平台, 卡顿率, 平台, 卡顿率, 平台, 卡顿率\n"
     var htmlRows3 = ""
-    tmpString = "序号, cdn运营商, 终端类型, 首屏时间\n"
-    sqlContext.sql("SELECT row_number() OVER (ORDER BY instr('网宿百度腾讯阿里七牛云帆金山未定义', cdn), platform1) AS row_number, cdn, platform1, avg(v5) AS first FROM quanmin_first GROUP BY cdn, platform1").
-      collect().foreach((row: Row) => {
-      tmpString += "%d, %s, %s, %f\n".format(row.getInt(0), row.getString(1), getDeviceName(row.getLong(2)), row.getDouble(3))
+    tmpArray1 = sqlContext.sql(
+      """
+        |SELECT cdn, sum(v4)/count(*) AS lag_ratio FROM
+        |    (SELECT cdn, v4 FROM quanmin_lag WHERE platform=5 OR platform=14) t
+        |GROUP BY cdn ORDER BY instr('网宿百度腾讯阿里七牛云帆金山未定义', cdn)
+      """.stripMargin).collect()
+    tmpArray2 = sqlContext.sql(
+      """
+        |SELECT cdn, sum(v4)/count(*) AS lag_ratio FROM
+        |    (SELECT cdn, v4 FROM quanmin_lag WHERE platform=1) t
+        |GROUP BY cdn ORDER BY instr('网宿百度腾讯阿里七牛云帆金山未定义', cdn)
+      """.stripMargin).collect()
+    tmpArray3 = sqlContext.sql(
+      """
+        |SELECT cdn, sum(v4)/count(*) AS lag_ratio FROM
+        |    (SELECT cdn, v4 FROM quanmin_lag WHERE platform=2) t
+        |GROUP BY cdn ORDER BY instr('网宿百度腾讯阿里七牛云帆金山未定义', cdn)
+      """.stripMargin).collect()
+    for(i <- tmpArray1.indices) {
+      tmpString += "%s, %s, %f, %s, %f, %s, %f\n".format(tmpArray1(i).getString(0), "PC端", tmpArray1(i).getDouble(1), "Android端", tmpArray2(i).getDouble(1), "iOS端", tmpArray3(i).getDouble(1))
       htmlRows3 +=
         """
           |<tr>
           |  <td>%s</td>
           |  <td>%s</td>
           |  <td>%f</td>
+          |  <td>%s</td>
+          |  <td>%f</td>
+          |  <td>%s</td>
+          |  <td>%f</td>
           |</tr>
-        """.stripMargin.format(row.getString(1), getDeviceName(row.getLong(2)), row.getDouble(3))
-    })
+        """.stripMargin.format(tmpArray1(i).getString(0), "PC端", tmpArray1(i).getDouble(1), "Android端", tmpArray2(i).getDouble(1), "iOS端", tmpArray3(i).getDouble(1))
+    }
+    attachmentStringsToSend.update("[%s]卡顿率-各家分平台卡顿率".format(yesterday), tmpString)
+
+    tmpString = "cdn, 平台, 首屏时间, 平台, 首屏时间, 平台, 首屏时间\n"
+    var htmlRows4 = ""
+    tmpArray1 = sqlContext.sql(
+      """
+        |SELECT cdn, avg(v5) AS first FROM
+        |    (SELECT cdn, v5 FROM quanmin_first WHERE platform=5 OR platform=14) t
+        |GROUP BY cdn ORDER BY instr('网宿百度腾讯阿里七牛云帆金山未定义', cdn)
+      """.stripMargin).collect()
+    tmpArray2 = sqlContext.sql(
+      """
+        |SELECT cdn, avg(v5) AS first FROM
+        |    (SELECT cdn, v5 FROM quanmin_first WHERE platform=1) t
+        |GROUP BY cdn ORDER BY instr('网宿百度腾讯阿里七牛云帆金山未定义', cdn)
+      """.stripMargin).collect()
+    tmpArray3 = sqlContext.sql(
+      """
+        |SELECT cdn, avg(v5) AS first FROM
+        |    (SELECT cdn, v5 FROM quanmin_first WHERE platform=2) t
+        |GROUP BY cdn ORDER BY instr('网宿百度腾讯阿里七牛云帆金山未定义', cdn)
+      """.stripMargin).collect()
+    for(i <- tmpArray1.indices) {
+      tmpString += "%s, %s, %f, %s, %f, %s, %f\n".format(tmpArray1(i).getString(0), "PC端", tmpArray1(i).getDouble(1), "Android端", tmpArray2(i).getDouble(1), "iOS端", tmpArray3(i).getDouble(1))
+      htmlRows4 +=
+        """
+          |<tr>
+          |  <td>%s</td>
+          |  <td>%s</td>
+          |  <td>%f</td>
+          |  <td>%s</td>
+          |  <td>%f</td>
+          |  <td>%s</td>
+          |  <td>%f</td>
+          |</tr>
+        """.stripMargin.format(tmpArray1(i).getString(0), "PC端", tmpArray1(i).getDouble(1), "Android端", tmpArray2(i).getDouble(1), "iOS端", tmpArray3(i).getDouble(1))
+    }
     attachmentStringsToSend.update("[%s]首屏数据".format(yesterday), tmpString)
 
-    htmlTemplateString = htmlTemplateString.format(totalRatio, htmlRows1, htmlRows2, htmlRows3)
+    htmlTemplateString = htmlTemplateString.format(totalRatio, htmlRows1, htmlRows2, htmlRows3, htmlRows4)
 
     try {
       val email = new HtmlMultiPartEmail()
