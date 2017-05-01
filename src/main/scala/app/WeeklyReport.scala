@@ -18,7 +18,6 @@ object WeeklyReport {
     val sqlContext = new HiveContext(sc)
 
 
-
     val dateFormat = new SimpleDateFormat("yyyy-MM-dd")
     val cal = Calendar.getInstance
     val pathArray = new Array[String](7)
@@ -26,9 +25,9 @@ object WeeklyReport {
     val tmpCal = Calendar.getInstance
     var attachmentStringsToSend = scala.collection.mutable.Map[String, String]()
     var tmpString = ""
-    var tmpArray1:Array[Row] = Array()
-    var tmpArray2:Array[Row] = Array()
-    var tmpArray3:Array[Row] = Array()
+    var tmpArray1: Array[Row] = Array()
+    var tmpArray2: Array[Row] = Array()
+    var tmpArray3: Array[Row] = Array()
     var htmlTemplateString =
       """
         |<html>
@@ -179,9 +178,6 @@ object WeeklyReport {
       println(pathArray(i))
     }
     sqlContext.read.parquet(pathArray: _*).registerTempTable("quanmin_last_week")
-
-
-
 
 
     sqlContext.sql(
@@ -358,7 +354,7 @@ object WeeklyReport {
         |    FROM quanmin_this_week_lag WHERE platform=2 GROUP BY cdn, day(time)) t
         |GROUP BY cdn ORDER BY instr('网宿百度腾讯阿里七牛云帆金山未定义', cdn)
       """.stripMargin).collect()
-    for(i <- tmpArray1.indices) {
+    for (i <- tmpArray1.indices) {
       tmpString += "%s, %s, %f, %s, %f, %s, %f\n".format(tmpArray1(i).getString(0), "PC端", tmpArray1(i).getDouble(1), "Android端", tmpArray2(i).getDouble(1), "iOS端", tmpArray3(i).getDouble(1))
       htmlRows(3) +=
         """
@@ -423,7 +419,7 @@ object WeeklyReport {
         |    FROM quanmin_this_week_first WHERE platform=2 GROUP BY cdn, day(time)) t
         |GROUP BY cdn ORDER BY instr('网宿百度腾讯阿里七牛云帆金山未定义', cdn)
       """.stripMargin).collect()
-    for(i <- tmpArray1.indices) {
+    for (i <- tmpArray1.indices) {
       tmpString += "%s, %s, %f, %s, %f, %s, %f\n".format(tmpArray1(i).getString(0), "PC端", tmpArray1(i).getDouble(1), "Android端", tmpArray2(i).getDouble(1), "iOS端", tmpArray3(i).getDouble(1))
       htmlRows(5) +=
         """
@@ -454,7 +450,7 @@ object WeeklyReport {
         |    (SELECT province, sum(v4)/count(*) AS lag_ratio FROM quanmin_this_week_lag WHERE country='中国' AND province!='中国' AND isp='教育网' GROUP BY province, day(time)) t
         |GROUP BY province ORDER BY lag_ratio DESC LIMIT 5
       """.stripMargin).collect()
-    for(i <- tmpArray1.indices) {
+    for (i <- tmpArray1.indices) {
       tmpString += "%s, %s, %f, %s, %s, %f\n".format(tmpArray1(i).getString(0), "ALL", tmpArray1(i).getDouble(1), tmpArray2(i).getString(0), "教育网", tmpArray2(i).getDouble(1))
       htmlRows(6) +=
         """
@@ -494,7 +490,7 @@ object WeeklyReport {
         |    ON t1.province=quanmin_valid_province.province2
         |ORDER BY lag_ratio LIMIT 5
       """.stripMargin).collect()
-    for(i <- tmpArray1.indices) {
+    for (i <- tmpArray1.indices) {
       tmpString += "%s, %s, %f, %s, %s, %f\n".format(tmpArray1(i).getString(0), "ALL", tmpArray1(i).getDouble(1), tmpArray2(i).getString(0), "教育网", tmpArray2(i).getDouble(1))
       htmlRows(7) +=
         """
@@ -572,28 +568,27 @@ object WeeklyReport {
     })
     attachmentStringsToSend.update("各家CDN卡顿率-省份最差top5排名", tmpString)
 
-    try {
-      val email = new HtmlMultiPartEmail()
-      email.setCharset("UTF-8")
-      email.setHostName("smtp.sendcloud.net")
-      email.setAuthentication("postmaster@apm.mail.qiniu.com", "gW6q6lbbiwFXEoyg")
-      email.setFrom("no-reply@apm.mail.qiniu.com", "PILI-APM")
-      email.addTo("wangsiyu@qiniu.com")
-      email.setSubject("周报数据（%s）".format(dateString))
-      email.setHtml(htmlTemplateString.format(htmlRows: _*))
-      attachmentStringsToSend.foreach[Unit]((test: (String, String)) => {
-        val fileHandler = new File("/tmp/%s.csv".format(test._1))
-        val fileWriter = new FileOutputStream(fileHandler)
-        // 为了兼容恶心的微软 excel，我只能手动添加 BOM 了，囧
-        val bs = Array(0xEF.toByte, 0xBB.toByte, 0xBF.toByte)
-        fileWriter.write(bs)
-        fileWriter.write(test._2.getBytes("UTF-8"))
-        fileWriter.close()
-        email.attach(fileHandler)
-      })
-      email.send()
-    } catch {
-      case e: Exception => println(e)
-    }
+    val email = new HtmlMultiPartEmail()
+    email.setCharset("UTF-8")
+    email.setHostName("smtp.sendcloud.net")
+    email.setAuthentication("postmaster@apm.mail.qiniu.com", "gW6q6lbbiwFXEoyg")
+    email.setFrom("no-reply@apm.mail.qiniu.com", "PILI-APM")
+    email.addTo("fangchaochao@qmtv.com")
+    email.addTo("dengyarong@qmtv.com")
+    email.addTo("huangyisan@qmtv.com")
+    email.addCc("zhangyunlong@qmtv.com")
+    email.setSubject("周报数据（%s）".format(dateString))
+    email.setHtml(htmlTemplateString.format(htmlRows: _*))
+    attachmentStringsToSend.foreach[Unit]((test: (String, String)) => {
+      val fileHandler = new File("/tmp/%s.csv".format(test._1))
+      val fileWriter = new FileOutputStream(fileHandler)
+      // 为了兼容恶心的微软 excel，我只能手动添加 BOM 了，囧
+      val bs = Array(0xEF.toByte, 0xBB.toByte, 0xBF.toByte)
+      fileWriter.write(bs)
+      fileWriter.write(test._2.getBytes("UTF-8"))
+      fileWriter.close()
+      email.attach(fileHandler)
+    })
+    email.send()
   }
 }
