@@ -191,7 +191,7 @@ object WeeklyReport {
         |    WHEN v1='yf' THEN '云帆'
         |    WHEN v1='js' THEN '金山'
         |    ELSE '未定义' END AS cdn, *
-        |FROM quanmin_this_week WHERE tag='monitor' AND room_id!=-1 AND v5>1
+        |FROM quanmin_this_week WHERE tag='monitor' AND room_id!=-1 AND v5>1 AND client_ip!="125.90.93.217" AND client_ip!="125.90.93.83" AND client_ip!="125.90.88.103" AND client_ip!="183.56.171.42" AND client_ip!="125.90.93.215" AND client_ip!="183.56.170.244" AND client_ip!="218.30.131.254
       """.stripMargin).cache().registerTempTable("quanmin_this_week_lag")
     sqlContext.sql(
       """
@@ -204,7 +204,7 @@ object WeeklyReport {
         |    WHEN v1='yf' THEN '云帆'
         |    WHEN v1='js' THEN '金山'
         |    ELSE '未定义' END AS cdn, *
-        |FROM quanmin_last_week WHERE tag='monitor' AND room_id!=-1 AND v5>1
+        |FROM quanmin_last_week WHERE tag='monitor' AND room_id!=-1 AND v5>1 AND client_ip!="125.90.93.217" AND client_ip!="125.90.93.83" AND client_ip!="125.90.88.103" AND client_ip!="183.56.171.42" AND client_ip!="125.90.93.215" AND client_ip!="183.56.170.244" AND client_ip!="218.30.131.254
       """.stripMargin).cache().registerTempTable("quanmin_last_week_lag")
     sqlContext.sql(
       """
@@ -217,7 +217,7 @@ object WeeklyReport {
         |    WHEN v1='yf' THEN '云帆'
         |    WHEN v1='js' THEN '金山'
         |    ELSE '未定义' END AS cdn, *
-        |FROM quanmin_this_week WHERE tag='first' AND room_id!=-1 AND v5<=10000 AND v5>0
+        |FROM quanmin_this_week WHERE tag='first' AND room_id!=-1 AND v5<=10000 AND v5>0 AND client_ip!="125.90.93.217" AND client_ip!="125.90.93.83" AND client_ip!="125.90.88.103" AND client_ip!="183.56.171.42" AND client_ip!="125.90.93.215" AND client_ip!="183.56.170.244" AND client_ip!="218.30.131.254
       """.stripMargin).cache().registerTempTable("quanmin_this_week_first")
     sqlContext.sql(
       """
@@ -230,7 +230,7 @@ object WeeklyReport {
         |    WHEN v1='yf' THEN '云帆'
         |    WHEN v1='js' THEN '金山'
         |    ELSE '未定义' END AS cdn, *
-        |FROM quanmin_last_week WHERE tag='first' AND room_id!=-1 AND v5<=10000 AND v5>0
+        |FROM quanmin_last_week WHERE tag='first' AND room_id!=-1 AND v5<=10000 AND v5>0 AND client_ip!="125.90.93.217" AND client_ip!="125.90.93.83" AND client_ip!="125.90.88.103" AND client_ip!="183.56.171.42" AND client_ip!="125.90.93.215" AND client_ip!="183.56.170.244" AND client_ip!="218.30.131.254
       """.stripMargin).cache().registerTempTable("quanmin_last_week_first")
     sqlContext.sql(
       """
