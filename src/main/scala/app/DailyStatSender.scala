@@ -65,7 +65,6 @@ object DailyStatSender {
         collect().foreach((row: Row) => {
         val p = new Point
         p.append("time", new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX").format(cal.getTime))
-        println(new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX").format(cal.getTime))
         p.append("cdn", row.getString(0))
         p.append("platform", Long.box(row.getLong(1)))
         p.append("province", row.getString(2))

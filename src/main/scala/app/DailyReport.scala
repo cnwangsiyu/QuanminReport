@@ -151,7 +151,7 @@ object DailyReport {
         |CASE
         |    WHEN platform=14 THEN 5
         |    ELSE platform END AS platform1, *
-        |FROM quanmin_raw WHERE tag='first' AND room_id!=-1 AND v5<=10000 AND v5>0 AND client_ip!="125.90.93.217" AND client_ip!="125.90.93.83" AND client_ip!="125.90.88.103" AND client_ip!="183.56.171.42" AND client_ip!="125.90.93.215" AND client_ip!="183.56.170.244" AND client_ip!="218.30.131.254
+        |FROM quanmin_raw WHERE tag='first' AND room_id!=-1 AND v5<=10000 AND v5>0 AND client_ip!="125.90.93.217" AND client_ip!="125.90.93.83" AND client_ip!="125.90.88.103" AND client_ip!="183.56.171.42" AND client_ip!="125.90.93.215" AND client_ip!="183.56.170.244" AND client_ip!="218.30.131.254"
       """.stripMargin).cache().registerTempTable("quanmin_first")
 
 
