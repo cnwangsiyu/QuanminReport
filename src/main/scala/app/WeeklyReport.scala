@@ -239,6 +239,7 @@ object WeeklyReport {
         |WHERE total_count>100000
       """.stripMargin).cache().registerTempTable("quanmin_valid_province")
 
+
     tmpString = "本周卡顿率, 上周卡顿率, 差异, 趋势\n"
     htmlRows(0) = ""
     sqlContext.sql(
