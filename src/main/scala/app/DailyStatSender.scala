@@ -37,6 +37,10 @@ object DailyStatSender {
     quanmin.printSchema()
     quanmin.registerTempTable("quanmin_raw")
 
+    sqlContext.udf.register("contains", (s1: String, s2: String) => {
+      s1.contains(s2)
+    })
+
     sqlContext.sql(
       """
         |SELECT CASE
@@ -50,8 +54,16 @@ object DailyStatSender {
         |    ELSE '未定义' END AS cdn,
         |CASE
         |    WHEN platform=14 THEN 5
-        |    ELSE platform END AS platform1, *
-        |FROM quanmin_raw WHERE tag='monitor' AND room_id!=-1 AND v5>1
+        |    ELSE platform END AS platform1,
+        |CASE
+        |    WHEN contains(isp, "鹏博士") then "鹏博士"
+        |    WHEN contains(isp, "教育网") then "教育网"
+        |    WHEN contains(isp, "铁通") then "铁通"
+        |    WHEN contains(isp, "电信") then "电信"
+        |    WHEN contains(isp, "移动") then "移动"
+        |    WHEN contains(isp, "联通") then "联通"
+        |    ELSE "其他" END AS isp1, *
+        |    FROM quanmin_raw WHERE tag='monitor' AND room_id!=-1 AND v5>1
       """.stripMargin).cache().registerTempTable("quanmin_lag")
 
     sqlContext.sql(
@@ -67,7 +79,15 @@ object DailyStatSender {
         |    ELSE '未定义' END AS cdn,
         |CASE
         |    WHEN platform=14 THEN 5
-        |    ELSE platform END AS platform1, *
+        |    ELSE platform END AS platform1,
+        |CASE
+        |    WHEN contains(isp, "鹏博士") then "鹏博士"
+        |    WHEN contains(isp, "教育网") then "教育网"
+        |    WHEN contains(isp, "铁通") then "铁通"
+        |    WHEN contains(isp, "电信") then "电信"
+        |    WHEN contains(isp, "移动") then "移动"
+        |    WHEN contains(isp, "联通") then "联通"
+        |    ELSE "其他" END AS isp1, *
         |FROM quanmin_raw WHERE tag='first' AND room_id!=-1 AND v5<=10000 AND v5>0
       """.stripMargin).cache().registerTempTable("quanmin_first")
 
@@ -77,7 +97,7 @@ object DailyStatSender {
     val lagSender = new DataSender(lagRepoName, auth)
     val lagPoints = new util.ArrayList[Point]
 
-    sqlContext.sql("select v1 as cdn, platform, province, isp, sum(v4) as total_lag, count(*) as total_point from quanmin_lag where country='中国' group by v1, platform, province, isp").
+    sqlContext.sql("select v1 as cdn, platform, province, isp1, sum(v4) as total_lag, count(*) as total_point from quanmin_lag where country='中国' group by v1, platform, province, isp1").
       collect().foreach((row: Row) => {
       val p = new Point
       p.append("time", new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX").format(cal.getTime))
