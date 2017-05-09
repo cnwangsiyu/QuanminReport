@@ -377,11 +377,13 @@ object WeeklyReport {
     sqlContext.sql(
       """
         |SELECT cdn, isp, avg(lag_ratio) AS lag_ratio FROM
-        |    (SELECT cdn, CASE
-        |        WHEN isp='电信' OR isp='移动' OR isp='联通' THEN '三大运营商'
-        |        WHEN isp='教育网' THEN '教育网'
-        |        ELSE '其他' END AS isp, sum(v4)/count(*) AS lag_ratio
-        |    FROM quanmin_this_week_lag GROUP BY day(time), cdn, isp) t
+        |    (SELECT cdn, isp, sum(v4)/count(*) AS lag_ratio FROM
+        |        (SELECT time, cdn, CASE
+        |            WHEN isp='电信' OR isp='移动' OR isp='联通' THEN '三大运营商'
+        |            WHEN isp='教育网' THEN '教育网'
+        |            ELSE '其他' END AS isp, v4
+        |        FROM quanmin_this_week_lag) t
+        |     GROUP BY day(time), cdn, isp) t
         |GROUP BY cdn, isp ORDER BY instr('三大运营商教育网其他', isp), instr('网宿百度腾讯阿里七牛云帆金山未定义', cdn)
       """.stripMargin).
       collect().foreach((row: Row) => {
