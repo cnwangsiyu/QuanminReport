@@ -88,7 +88,7 @@ object DailyStatSender {
         |    WHEN contains(isp, "移动") then "移动"
         |    WHEN contains(isp, "联通") then "联通"
         |    ELSE "其他" END AS isp1, *
-        |FROM quanmin_raw WHERE tag='first' AND room_id!=-1 AND v5<=10000 AND v5>0
+        |FROM quanmin_raw WHERE tag='first' AND room_id!=-1 AND v5<=30000 AND v5>0
       """.stripMargin).cache().registerTempTable("quanmin_first")
 
     val auth = Auth.create("YFvDcv7ie2tmSCRjX8aYHwrfqpeXR4M_ef2Az1CK", "MCBFkF6tv55uxavHTnxKEFt8f7uKL5rD0Lv2gL5n")
@@ -97,7 +97,7 @@ object DailyStatSender {
     val lagSender = new DataSender(lagRepoName, auth)
     val lagPoints = new util.ArrayList[Point]
 
-    sqlContext.sql("select v1 as cdn, platform, province, isp1, sum(v4) as total_lag, count(*) as total_point from quanmin_lag where country='中国' group by v1, platform, province, isp1").
+    sqlContext.sql("select cdn, platform, province, isp1, sum(v4) as total_lag, count(*) as total_point from quanmin_lag where country='中国' group by cdn, platform, province, isp1").
       collect().foreach((row: Row) => {
       val p = new Point
       p.append("time", new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX").format(cal.getTime))
@@ -119,7 +119,7 @@ object DailyStatSender {
     val firstSender = new DataSender(firstRepoName, auth)
     val firstPoints = new util.ArrayList[Point]
 
-    sqlContext.sql("select v1 as cdn, platform, province, isp, avg(v5) as first_avg from quanmin_first where country='中国' group by v1, platform, province, isp").
+    sqlContext.sql("select cdn, platform, province, isp, avg(v5) as first_avg from quanmin_first where country='中国' group by cdn, platform, province, isp").
       collect().foreach((row: Row) => {
       val p = new Point
       p.append("time", new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX").format(cal.getTime))
