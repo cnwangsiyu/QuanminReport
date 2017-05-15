@@ -579,6 +579,7 @@ object WeeklyReport {
     email.addTo("fangchaochao@qmtv.com")
     email.addTo("dengyarong@qmtv.com")
     email.addTo("huangyisan@qmtv.com")
+    email.addTo("yangbo@qmtv.com")
     email.addCc("zhangyunlong@qmtv.com")
     email.setSubject("周报数据（%s）".format(dateString))
     email.setHtml(htmlTemplateString.format(htmlRows: _*))

@@ -386,6 +386,7 @@ object DailyReport {
     email.addTo("fangchaochao@qmtv.com")
     email.addTo("dengyarong@qmtv.com")
     email.addTo("huangyisan@qmtv.com")
+    email.addTo("yangbo@qmtv.com")
     email.addCc("zhangyunlong@qmtv.com")
     email.setSubject("[%s][全民TV]CDN质量数据日报".format(yesterday))
     email.setHtml(htmlTemplateString)
