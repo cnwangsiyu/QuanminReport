@@ -43,78 +43,105 @@ object DailyStatSender {
 
     sqlContext.sql(
       """
-        |SELECT CASE
-        |    WHEN v1='bd' OR v1='baidu' THEN '百度'
-        |    WHEN v1='qn' THEN '七牛'
-        |    WHEN v1='tx' THEN '腾讯'
-        |    WHEN v1='al' OR v1='ali' THEN '阿里'
-        |    WHEN v1='ws' THEN '网宿'
-        |    WHEN v1='yf' THEN '云帆'
-        |    WHEN v1='js' THEN '金山'
-        |    ELSE '未定义' END AS cdn,
-        |CASE
-        |    WHEN platform=14 THEN 5
-        |    ELSE platform END AS platform1,
-        |CASE
-        |    WHEN contains(isp, "鹏博士") then "鹏博士"
-        |    WHEN contains(isp, "教育网") then "教育网"
-        |    WHEN contains(isp, "铁通") then "铁通"
-        |    WHEN contains(isp, "电信") then "电信"
-        |    WHEN contains(isp, "移动") then "移动"
-        |    WHEN contains(isp, "联通") then "联通"
-        |    ELSE "其他" END AS isp1, *
-        |    FROM quanmin_raw WHERE tag='monitor' AND room_id!=-1 AND v5>1 AND country='中国'
-      """.stripMargin).cache().registerTempTable("quanmin_lag")
+        |select cdn_ip from
+        |    (select v2 as cdn_ip, count(*) as count from quanmin_raw group by v2) t
+        |where count > 1000
+      """.stripMargin).cache().registerTempTable("quanmin_valid_cdn_ip")
 
     sqlContext.sql(
       """
-        |SELECT CASE
-        |    WHEN v1='bd' OR v1='baidu' THEN '百度'
-        |    WHEN v1='qn' THEN '七牛'
-        |    WHEN v1='tx' THEN '腾讯'
-        |    WHEN v1='al' OR v1='ali' THEN '阿里'
-        |    WHEN v1='ws' THEN '网宿'
-        |    WHEN v1='yf' THEN '云帆'
-        |    WHEN v1='js' THEN '金山'
-        |    ELSE '未定义' END AS cdn,
-        |CASE
-        |    WHEN platform=14 THEN 5
-        |    ELSE platform END AS platform1,
-        |CASE
-        |    WHEN contains(isp, "鹏博士") then "鹏博士"
-        |    WHEN contains(isp, "教育网") then "教育网"
-        |    WHEN contains(isp, "铁通") then "铁通"
-        |    WHEN contains(isp, "电信") then "电信"
-        |    WHEN contains(isp, "移动") then "移动"
-        |    WHEN contains(isp, "联通") then "联通"
-        |    ELSE "其他" END AS isp1, *
-        |FROM quanmin_raw WHERE tag='first' AND room_id!=-1 AND v5<=30000 AND v5>0 AND country='中国'
-      """.stripMargin).cache().registerTempTable("quanmin_first")
+        |select * from
+        |    (select case
+        |        when v1='bd' or v1='baidu' then '百度'
+        |        when v1='qn' then '七牛'
+        |        when v1='tx' then '腾讯'
+        |        when v1='al' or v1='ali' then '阿里'
+        |        when v1='ws' then '网宿'
+        |        when v1='yf' then '云帆'
+        |        when v1='js' then '金山'
+        |        else '未定义' end as cdn,
+        |    case
+        |        when platform=14 then 5
+        |        else platform end as platform1,
+        |    case
+        |        when contains(isp, "鹏博士") then "鹏博士"
+        |        when contains(isp, "教育网") then "教育网"
+        |        when contains(isp, "铁通") then "铁通"
+        |        when contains(isp, "电信") then "电信"
+        |        when contains(isp, "移动") then "移动"
+        |        when contains(isp, "联通") then "联通"
+        |        else "其他" end as isp1, *
+        |        from quanmin_raw where tag='monitor' and room_id!=-1 and v5>1 and country='中国') t1
+        |right join
+        |    quanmin_valid_cdn_ip
+        |on t1.v2=quanmin_valid_cdn_ip.cdn_ip
+      """.stripMargin).registerTempTable("quanmin_lag")
 
     sqlContext.sql(
       """
-        |SELECT CASE
-        |    WHEN v1='bd' OR v1='baidu' THEN '百度'
-        |    WHEN v1='qn' THEN '七牛'
-        |    WHEN v1='tx' THEN '腾讯'
-        |    WHEN v1='al' OR v1='ali' THEN '阿里'
-        |    WHEN v1='ws' THEN '网宿'
-        |    WHEN v1='yf' THEN '云帆'
-        |    WHEN v1='js' THEN '金山'
-        |    ELSE '未定义' END AS cdn,
-        |CASE
-        |    WHEN platform=14 THEN 5
-        |    ELSE platform END AS platform1,
-        |CASE
-        |    WHEN contains(isp, "鹏博士") then "鹏博士"
-        |    WHEN contains(isp, "教育网") then "教育网"
-        |    WHEN contains(isp, "铁通") then "铁通"
-        |    WHEN contains(isp, "电信") then "电信"
-        |    WHEN contains(isp, "移动") then "移动"
-        |    WHEN contains(isp, "联通") then "联通"
-        |    ELSE "其他" END AS isp1, *
-        |FROM quanmin_raw WHERE tag='connect' AND room_id!=-1 AND v5<=30000 AND v5>0 AND country='中国'
-      """.stripMargin).cache().registerTempTable("quanmin_connect")
+        |select * from
+        |    (select case
+        |        when v1='bd' or v1='baidu' then '百度'
+        |        when v1='qn' then '七牛'
+        |        when v1='tx' then '腾讯'
+        |        when v1='al' or v1='ali' then '阿里'
+        |        when v1='ws' then '网宿'
+        |        when v1='yf' then '云帆'
+        |        when v1='js' then '金山'
+        |        else '未定义' end as cdn,
+        |    case
+        |        when platform=14 then 5
+        |        else platform end as platform1,
+        |    case
+        |        when contains(isp, "鹏博士") then "鹏博士"
+        |        when contains(isp, "教育网") then "教育网"
+        |        when contains(isp, "铁通") then "铁通"
+        |        when contains(isp, "电信") then "电信"
+        |        when contains(isp, "移动") then "移动"
+        |        when contains(isp, "联通") then "联通"
+        |        else "其他" end as isp1,
+        |    case
+        |        when v5 <= 1000 THEN 1
+        |        when v5 > 1000 and v5 <= 3000 then 2
+        |        else 3 end as first_range, *
+        |    from quanmin_raw where tag='first' and room_id!=-1 and v5<=30000 and v5>0 and country='中国') t1
+        |right join
+        |    quanmin_valid_cdn_ip
+        |on t1.v2=quanmin_valid_cdn_ip.cdn_ip
+      """.stripMargin).registerTempTable("quanmin_first")
+
+    sqlContext.sql(
+      """
+        |select * from
+        |    (select case
+        |        when v1='bd' or v1='baidu' then '百度'
+        |        when v1='qn' then '七牛'
+        |        when v1='tx' then '腾讯'
+        |        when v1='al' or v1='ali' then '阿里'
+        |        when v1='ws' then '网宿'
+        |        when v1='yf' then '云帆'
+        |        when v1='js' then '金山'
+        |        else '未定义' end as cdn,
+        |    case
+        |        when platform=14 then 5
+        |        else platform end as platform1,
+        |    case
+        |        when contains(isp, "鹏博士") then "鹏博士"
+        |        when contains(isp, "教育网") then "教育网"
+        |        when contains(isp, "铁通") then "铁通"
+        |        when contains(isp, "电信") then "电信"
+        |        when contains(isp, "移动") then "移动"
+        |        when contains(isp, "联通") then "联通"
+        |        else "其他" end as isp1,
+        |    case
+        |        when v5 <= 1000 then 1
+        |        when v5 > 1000 and v5 <= 3000 then 2
+        |        else 3 end as connect_range, *
+        |    from quanmin_raw where tag='connect' and room_id!=-1 and v5<=30000 and v5>0 and country='中国') t1
+        |right join
+        |    quanmin_valid_cdn_ip
+        |on t1.v2=quanmin_valid_cdn_ip.cdn_ip
+      """.stripMargin).registerTempTable("quanmin_connect")
 
     val auth = Auth.create("YFvDcv7ie2tmSCRjX8aYHwrfqpeXR4M_ef2Az1CK", "MCBFkF6tv55uxavHTnxKEFt8f7uKL5rD0Lv2gL5n")
 
@@ -124,9 +151,7 @@ object DailyStatSender {
 
     sqlContext.sql(
       """
-        |select * from
-        |    (select cdn, platform, province, isp1, sum(v4) as total_lag, count(*) as total_point, v2 as cdn_ip from quanmin_lag group by cdn, platform, province, isp1, v2) t1
-        |where total_point>300
+        |select cdn, platform, province, isp1, cdn_ip, sum(v4) as total_lag, count(*) as total_point from quanmin_lag group by cdn, platform, province, isp1, cdn_ip
       """.stripMargin).
       collect().foreach((row: Row) => {
       val p = new Point
@@ -135,9 +160,9 @@ object DailyStatSender {
       p.append("platform", Long.box(row.getLong(1)))
       p.append("province", row.getString(2))
       p.append("isp", row.getString(3))
-      p.append("total_lag", Long.box(row.getLong(4)))
-      p.append("total_point", Long.box(row.getLong(5)))
-      p.append("cdn_ip", row.getString(6))
+      p.append("cdn_ip", row.getString(4))
+      p.append("total_lag", Long.box(row.getLong(5)))
+      p.append("total_point", Long.box(row.getLong(6)))
       lagPoints.add(p)
     })
     var err = lagSender.send(lagPoints)
@@ -152,9 +177,7 @@ object DailyStatSender {
 
     sqlContext.sql(
       """
-        |select * from
-        |    (select cdn, platform, province, isp1, avg(v5) as first_avg, v2 as cdn_ip, count(*) as total_count from quanmin_first group by cdn, platform, province, isp1, v2) t1
-        |where total_count>50
+        |select cdn, platform, province, isp1, cdn_ip, first_range, avg(v5) as first_avg, count(*) as total_point from quanmin_first group by cdn, platform, province, isp1, cdn_ip, first_range
       """.stripMargin).
       collect().foreach((row: Row) => {
       val p = new Point
@@ -163,8 +186,10 @@ object DailyStatSender {
       p.append("platform", Long.box(row.getLong(1)))
       p.append("province", row.getString(2))
       p.append("isp", row.getString(3))
-      p.append("first_avg", Double.box(row.getDouble(4)))
-      p.append("cdn_ip", row.getString(5))
+      p.append("cdn_ip", row.getString(4))
+      p.append("first_range", Long.box(row.getLong(5)))
+      p.append("first_avg", Double.box(row.getDouble(6)))
+      p.append("total_point", Long.box(row.getLong(7)))
       firstPoints.add(p)
     })
     err = firstSender.send(firstPoints)
@@ -179,9 +204,7 @@ object DailyStatSender {
 
     sqlContext.sql(
       """
-        |select * from
-        |    (select cdn, platform, province, isp1, avg(v5) as connect_avg, v2 as cdn_ip, count(*) as total_count from quanmin_connect group by cdn, platform, province, isp1, v2) t1
-        |where total_count>50
+        |select cdn, platform, province, isp1, cdn_ip, avg(v5) as connect_avg, count(*) as total_count from quanmin_connect group by cdn, platform, province, isp1, cdn_ip
       """.stripMargin).
       collect().foreach((row: Row) => {
       val p = new Point
@@ -190,8 +213,9 @@ object DailyStatSender {
       p.append("platform", Long.box(row.getLong(1)))
       p.append("province", row.getString(2))
       p.append("isp", row.getString(3))
-      p.append("connect_avg", Double.box(row.getDouble(4)))
-      p.append("cdn_ip", row.getString(5))
+      p.append("cdn_ip", row.getString(4))
+      p.append("connect_avg", Double.box(row.getDouble(5)))
+      p.append("total_point", Long.box(row.getLong(6)))
       connectPoints.add(p)
     })
     err = connectSender.send(connectPoints)
