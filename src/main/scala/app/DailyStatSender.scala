@@ -72,7 +72,7 @@ object DailyStatSender {
         |        when contains(isp, "联通") then "联通"
         |        else "其他" end as isp1, *
         |        from quanmin_raw where tag='monitor' and room_id!=-1 and v5>1 and country='中国') t1
-        |right join
+        |inner join
         |    quanmin_valid_cdn_ip
         |on t1.v2=quanmin_valid_cdn_ip.cdn_ip
       """.stripMargin).registerTempTable("quanmin_lag")
@@ -105,7 +105,7 @@ object DailyStatSender {
         |        when v5 > 1000 and v5 <= 3000 then 2
         |        else 3 end as first_range, *
         |    from quanmin_raw where tag='first' and room_id!=-1 and v5<=30000 and v5>0 and country='中国') t1
-        |right join
+        |inner join
         |    quanmin_valid_cdn_ip
         |on t1.v2=quanmin_valid_cdn_ip.cdn_ip
       """.stripMargin).registerTempTable("quanmin_first")
@@ -138,7 +138,7 @@ object DailyStatSender {
         |        when v5 > 1000 and v5 <= 3000 then 2
         |        else 3 end as connect_range, *
         |    from quanmin_raw where tag='connect' and room_id!=-1 and v5<=30000 and v5>0 and country='中国') t1
-        |right join
+        |inner join
         |    quanmin_valid_cdn_ip
         |on t1.v2=quanmin_valid_cdn_ip.cdn_ip
       """.stripMargin).registerTempTable("quanmin_connect")
@@ -187,7 +187,7 @@ object DailyStatSender {
       p.append("province", row.getString(2))
       p.append("isp", row.getString(3))
       p.append("cdn_ip", row.getString(4))
-      p.append("first_range", Long.box(row.getLong(5)))
+      p.append("first_range", Int.box(row.getInt(5)))
       p.append("first_avg", Double.box(row.getDouble(6)))
       p.append("total_point", Long.box(row.getLong(7)))
       firstPoints.add(p)
@@ -199,7 +199,7 @@ object DailyStatSender {
     firstSender.close()
 
     val connectRepoName = "quanmin_report_connect"
-    val connectSender = new DataSender(firstRepoName, auth)
+    val connectSender = new DataSender(connectRepoName, auth)
     val connectPoints = new util.ArrayList[Point]
 
     sqlContext.sql(
