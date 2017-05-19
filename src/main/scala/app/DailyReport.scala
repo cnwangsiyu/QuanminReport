@@ -9,6 +9,7 @@ import org.apache.spark.sql.hive.HiveContext
 import org.apache.spark.{SparkConf, SparkContext}
 import udf.MyOrAgg
 import scala.collection.mutable
+import scala.util.control.Breaks._
 
 /**
   * Created by WangSiyu on 15/03/2017.
@@ -359,8 +360,47 @@ object DailyReport {
         |    (SELECT cdn, v5 FROM quanmin_first WHERE platform=2) t
         |GROUP BY cdn ORDER BY instr('网宿百度腾讯阿里七牛云帆金山未定义', cdn)
       """.stripMargin).collect()
-    for (i <- tmpArray1.indices) {
-      tmpString += "%s, %s, %f, %s, %f, %s, %f\n".format(tmpArray1(i).getString(0), "PC端", tmpArray1(i).getDouble(1), "Android端", tmpArray2(i).getDouble(1), "iOS端", tmpArray3(i).getDouble(1))
+    val cdns = Array("网宿", "百度", "腾讯", "阿里", "七牛", "云帆", "金山", "未定义")
+    for (cdn <- cdns) {
+      var s1, s2, s3 = -1
+      breakable(
+        for (i <- tmpArray1.indices) {
+          if (tmpArray1(i).getString(0).equals(cdn)) {
+            s1 = i
+            break
+          }
+        }
+      )
+      breakable(
+        for (i <- tmpArray2.indices) {
+          if (tmpArray2(i).getString(0).equals(cdn)) {
+            s2 = i
+            break
+          }
+        }
+      )
+      breakable(
+        for (i <- tmpArray3.indices) {
+          if (tmpArray3(i).getString(0).equals(cdn)) {
+            s3 = i
+            break
+          }
+        }
+      )
+
+      tmpString += "%s, %s, %f, %s, %f, %s, %f\n".format(cdn,
+        "PC端", {
+        if (s1 >= 0) tmpArray1(s1).getDouble(1)
+        else 0.0
+        },
+        "Android端", {
+          if (s2 >= 0) tmpArray2(s2).getDouble(1)
+          else 0.0
+        },
+        "iOS端", {
+          if (s3 >= 0) tmpArray3(s3).getDouble(1)
+          else 0.0
+        })
       htmlRows4 +=
         """
           |<tr>
@@ -372,7 +412,19 @@ object DailyReport {
           |  <td>%s</td>
           |  <td>%f</td>
           |</tr>
-        """.stripMargin.format(tmpArray1(i).getString(0), "PC端", tmpArray1(i).getDouble(1), "Android端", tmpArray2(i).getDouble(1), "iOS端", tmpArray3(i).getDouble(1))
+        """.stripMargin.format(cdn,
+          "PC端", {
+            if (s1 >= 0) tmpArray1(s1).getDouble(1)
+            else 0.0
+          },
+          "Android端", {
+            if (s2 >= 0) tmpArray2(s2).getDouble(1)
+            else 0.0
+          },
+          "iOS端", {
+            if (s3 >= 0) tmpArray3(s3).getDouble(1)
+            else 0.0
+          })
     }
     //    attachmentStringsToSend.update("[%s]首屏数据".format(yesterday), tmpString)
 
