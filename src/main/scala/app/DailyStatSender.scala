@@ -23,6 +23,8 @@ object DailyStatSender {
     val sc = new SparkContext(conf)
     val sqlContext = new HiveContext(sc)
 
+
+
     sc.hadoopConfiguration.set("fs.qiniu.bucket.domain", "http://oihu9i4fk.bkt.clouddn.com")
 
     val tmp = Calendar.getInstance
@@ -37,12 +39,11 @@ object DailyStatSender {
     quanmin.printSchema()
     quanmin.registerTempTable("quanmin_raw")
 
+
+
     sqlContext.udf.register("contains", (s1: String, s2: String) => {
       s1.contains(s2)
     })
-
-
-
     sqlContext.sql(
       """
         |select cdn_ip from
@@ -144,13 +145,13 @@ object DailyStatSender {
         |on t1.v2=quanmin_valid_cdn_ip.cdn_ip
       """.stripMargin).registerTempTable("quanmin_connect")
 
+
+
     val auth = Auth.create("YFvDcv7ie2tmSCRjX8aYHwrfqpeXR4M_ef2Az1CK", "MCBFkF6tv55uxavHTnxKEFt8f7uKL5rD0Lv2gL5n")
 
     val lagRepoName = "quanmin_report_lag"
     val lagSender = new DataSender(lagRepoName, auth)
     val lagPoints = new util.ArrayList[Point]
-
-
 
     sqlContext.sql(
       """
