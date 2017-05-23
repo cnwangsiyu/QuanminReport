@@ -149,13 +149,17 @@ object DailyStatSender {
 
     val auth = Auth.create("YFvDcv7ie2tmSCRjX8aYHwrfqpeXR4M_ef2Az1CK", "MCBFkF6tv55uxavHTnxKEFt8f7uKL5rD0Lv2gL5n")
 
-    val lagRepoName = "quanmin_report_lag"
-    val lagSender = new DataSender(lagRepoName, auth)
-    val lagPoints = new util.ArrayList[Point]
+    val repoName = "quanmin_report"
+    val sender = new DataSender(repoName, auth)
+    val points = new util.ArrayList[Point]
 
     sqlContext.sql(
       """
-        |select cdn, platform, province, isp1, cdn_ip, sum(v4) as total_lag, count(*) as total_point from quanmin_lag group by cdn, platform, province, isp1, cdn_ip
+        |select t1.cdn, t1.platform, t1.province, t1.isp1, t1.cdn_ip, connect_avg, connect_sum, connect_point, lag_sum, lag_point from
+        |    (select cdn, platform, province, isp1, cdn_ip, avg(v5) as connect_avg, sum(v5) as connect_sum, count(*) as connect_point from quanmin_connect group by cdn, platform, province, isp1, cdn_ip) t1
+        |left join
+        |    (select cdn, platform, province, isp1, cdn_ip, sum(v4) as lag_sum, count(*) as lag_point from quanmin_lag group by cdn, platform, province, isp1, cdn_ip) t2
+        |on t1.cdn=t2.cdn and t1.platform=t2.platform and t1.province=t2.province and t1.isp1=t2.isp1 and t1.cdn_ip=t2.cdn_ip
       """.stripMargin).
       collect().foreach((row: Row) => {
       val p = new Point
@@ -165,50 +169,33 @@ object DailyStatSender {
       p.append("province", row.getString(2))
       p.append("isp", row.getString(3))
       p.append("cdn_ip", row.getString(4))
-      p.append("total_lag", Long.box(row.getLong(5)))
-      p.append("total_point", Long.box(row.getLong(6)))
-      lagPoints.add(p)
+      if (row.get(5) != null) {
+        p.append("connect_avg", Double.box(row.getDouble(5)))
+      }
+      if (row.get(6) != null) {
+        p.append("connect_sum", Long.box(row.getLong(6)))
+      }
+      if (row.get(7) != null) {
+        p.append("connect_point", Long.box(row.getLong(7)))
+      }
+      if (row.get(8) != null) {
+        p.append("lag_sum", Long.box(row.getLong(8)))
+      }
+      if (row.get(9) != null) {
+        p.append("lag_point", Long.box(row.getLong(9)))
+      }
+      points.add(p)
     })
-    var err = lagSender.send(lagPoints)
+    var err = sender.send(points)
     if (err.getExceptions.size > 0) {
       println("error.getExceptions() = ", err.getExceptions)
     }
-    lagSender.close()
-
-    val connectRepoName = "quanmin_report_connect"
-    val connectSender = new DataSender(connectRepoName, auth)
-    val connectPoints = new util.ArrayList[Point]
+    sender.close()
+    points.clear()
 
     sqlContext.sql(
       """
-        |select cdn, platform, province, isp1, cdn_ip, avg(v5) as connect_avg, sum(v5) as connect_sum, count(*) as total_count from quanmin_connect group by cdn, platform, province, isp1, cdn_ip
-      """.stripMargin).
-      collect().foreach((row: Row) => {
-      val p = new Point
-      p.append("time", new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX").format(cal.getTime))
-      p.append("cdn", row.getString(0))
-      p.append("platform", Long.box(row.getLong(1)))
-      p.append("province", row.getString(2))
-      p.append("isp", row.getString(3))
-      p.append("cdn_ip", row.getString(4))
-      p.append("connect_avg", Double.box(row.getDouble(5)))
-      p.append("connect_sum", Long.box(row.getLong(6)))
-      p.append("total_point", Long.box(row.getLong(7)))
-      connectPoints.add(p)
-    })
-    err = connectSender.send(connectPoints)
-    if (err.getExceptions.size > 0) {
-      println("error.getExceptions() = ", err.getExceptions)
-    }
-    connectSender.close()
-
-    val firstRepoName = "quanmin_report_first"
-    val firstSender = new DataSender(firstRepoName, auth)
-    val firstPoints = new util.ArrayList[Point]
-
-    sqlContext.sql(
-      """
-        |select cdn, platform, province, isp1, cdn_ip, first_range, avg(v5) as first_avg, sum(v5) as first_sum, count(*) as total_point from quanmin_first group by cdn, platform, province, isp1, cdn_ip, first_range
+        |select cdn, platform, province, isp1, cdn_ip, first_range, avg(v5) as first_avg, sum(v5) as first_sum, count(*) as first_point from quanmin_first group by cdn, platform, province, isp1, cdn_ip, first_range
       """.stripMargin).
       collect().foreach((row: Row) => {
       val p = new Point
@@ -221,13 +208,13 @@ object DailyStatSender {
       p.append("first_range", Int.box(row.getInt(5)))
       p.append("first_avg", Double.box(row.getDouble(6)))
       p.append("first_sum", Long.box(row.getLong(7)))
-      p.append("total_point", Long.box(row.getLong(8)))
-      firstPoints.add(p)
+      p.append("first_point", Long.box(row.getLong(8)))
+      points.add(p)
     })
-    err = firstSender.send(firstPoints)
+    err = sender.send(points)
     if (err.getExceptions.size > 0) {
       println("error.getExceptions() = ", err.getExceptions)
     }
-    firstSender.close()
+    sender.close()
   }
 }
