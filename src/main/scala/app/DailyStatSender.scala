@@ -151,6 +151,8 @@ object DailyStatSender {
 
     val repoName = "quanmin_report"
     val sender = new DataSender(repoName, auth)
+    val repoName_noip = "quanmin_report_noip"
+    val sender_noip = new DataSender(repoName_noip, auth)
     val points = new util.ArrayList[Point]
 
     sqlContext.sql(
@@ -216,5 +218,69 @@ object DailyStatSender {
       println("error.getExceptions() = ", err.getExceptions)
     }
     sender.close()
+    points.clear()
+
+    sqlContext.sql(
+      """
+        |select t1.cdn, t1.platform, t1.province, t1.isp1, connect_avg, connect_sum, connect_point, lag_sum, lag_point from
+        |    (select cdn, platform, province, isp1, avg(v5) as connect_avg, sum(v5) as connect_sum, count(*) as connect_point from quanmin_connect group by cdn, platform, province, isp1) t1
+        |left join
+        |    (select cdn, platform, province, isp1, sum(v4) as lag_sum, count(*) as lag_point from quanmin_lag group by cdn, platform, province, isp1) t2
+        |on t1.cdn=t2.cdn and t1.platform=t2.platform and t1.province=t2.province and t1.isp1=t2.isp1
+      """.stripMargin).
+      collect().foreach((row: Row) => {
+      val p = new Point
+      p.append("time", new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX").format(cal.getTime))
+      p.append("cdn", row.getString(0))
+      p.append("platform", Long.box(row.getLong(1)))
+      p.append("province", row.getString(2))
+      p.append("isp", row.getString(3))
+      if (row.get(4) != null) {
+        p.append("connect_avg", Double.box(row.getDouble(4)))
+      }
+      if (row.get(5) != null) {
+        p.append("connect_sum", Long.box(row.getLong(5)))
+      }
+      if (row.get(6) != null) {
+        p.append("connect_point", Long.box(row.getLong(6)))
+      }
+      if (row.get(7) != null) {
+        p.append("lag_sum", Long.box(row.getLong(7)))
+      }
+      if (row.get(8) != null) {
+        p.append("lag_point", Long.box(row.getLong(8)))
+      }
+      points.add(p)
+    })
+    err = sender_noip.send(points)
+    if (err.getExceptions.size > 0) {
+      println("error.getExceptions() = ", err.getExceptions)
+    }
+    sender_noip.close()
+    points.clear()
+
+    sqlContext.sql(
+      """
+        |select cdn, platform, province, isp1, first_range, avg(v5) as first_avg, sum(v5) as first_sum, count(*) as first_point from quanmin_first group by cdn, platform, province, isp1, first_range
+      """.stripMargin).
+      collect().foreach((row: Row) => {
+      val p = new Point
+      p.append("time", new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX").format(cal.getTime))
+      p.append("cdn", row.getString(0))
+      p.append("platform", Long.box(row.getLong(1)))
+      p.append("province", row.getString(2))
+      p.append("isp", row.getString(3))
+      p.append("first_range", Int.box(row.getInt(4)))
+      p.append("first_avg", Double.box(row.getDouble(5)))
+      p.append("first_sum", Long.box(row.getLong(6)))
+      p.append("first_point", Long.box(row.getLong(7)))
+      points.add(p)
+    })
+    err = sender_noip.send(points)
+    if (err.getExceptions.size > 0) {
+      println("error.getExceptions() = ", err.getExceptions)
+    }
+    sender_noip.close()
+    points.clear()
   }
 }
