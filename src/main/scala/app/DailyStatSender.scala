@@ -24,21 +24,19 @@ object DailyStatSender {
     val sqlContext = new HiveContext(sc)
 
 
-
     sc.hadoopConfiguration.set("fs.qiniu.bucket.domain", "http://oihu9i4fk.bkt.clouddn.com")
 
     val tmp = Calendar.getInstance
     tmp.add(Calendar.DATE, -1)
     val cal = Calendar.getInstance
     cal.clear()
-    cal.set(tmp.get(Calendar.YEAR), tmp.get(Calendar.MONTH), tmp.get(Calendar.DATE))
+    cal.set(tmp.get(Calendar.YEAR), tmp.get(Calendar.MONTH), tmp.get(Calendar.DATE), 8, 0)
     val yesterday = new SimpleDateFormat("yyyy-MM-dd").format(cal.getTime)
 
     val dataPath = "qiniu://quanmin2/export_%s-*".format(yesterday)
     val quanmin = sqlContext.read.parquet(dataPath)
     quanmin.printSchema()
     quanmin.registerTempTable("quanmin_raw")
-
 
 
     sqlContext.udf.register("contains", (s1: String, s2: String) => {
@@ -144,7 +142,6 @@ object DailyStatSender {
         |    quanmin_valid_cdn_ip
         |on t1.v2=quanmin_valid_cdn_ip.cdn_ip
       """.stripMargin).registerTempTable("quanmin_connect")
-
 
 
     val auth = Auth.create("YFvDcv7ie2tmSCRjX8aYHwrfqpeXR4M_ef2Az1CK", "MCBFkF6tv55uxavHTnxKEFt8f7uKL5rD0Lv2gL5n")

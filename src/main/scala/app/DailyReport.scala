@@ -1,13 +1,17 @@
 package app
 
 import java.io.{File, FileOutputStream}
+import java.net.URL
 import java.text.SimpleDateFormat
 import java.util.Calendar
-import mail.HtmlMultiPartEmail
+import javax.activation.URLDataSource
+
+import org.apache.commons.mail.HtmlEmail
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.hive.HiveContext
 import org.apache.spark.{SparkConf, SparkContext}
 import udf.MyOrAgg
+
 import scala.collection.mutable
 import scala.util.control.Breaks._
 
@@ -98,6 +102,8 @@ object DailyReport {
         |</tr>
         |%s
         |</table>
+        |
+        |<img src="cid:c1">
         |
         |</body>
         |</html>
@@ -323,8 +329,47 @@ object DailyReport {
         |    (SELECT cdn, v4 FROM quanmin_lag WHERE platform=2) t
         |GROUP BY cdn ORDER BY instr('网宿百度腾讯阿里七牛云帆金山未定义', cdn)
       """.stripMargin).collect()
-    for (i <- tmpArray1.indices) {
-      tmpString += "%s, %s, %f, %s, %f, %s, %f\n".format(tmpArray1(i).getString(0), "PC端", tmpArray1(i).getDouble(1), "Android端", tmpArray2(i).getDouble(1), "iOS端", tmpArray3(i).getDouble(1))
+    val cdns = Array("网宿", "百度", "腾讯", "阿里", "七牛", "云帆", "金山", "未定义")
+    for (cdn <- cdns) {
+      var s1, s2, s3 = -1
+      breakable(
+        for (i <- tmpArray1.indices) {
+          if (tmpArray1(i).getString(0).equals(cdn)) {
+            s1 = i
+            break
+          }
+        }
+      )
+      breakable(
+        for (i <- tmpArray2.indices) {
+          if (tmpArray2(i).getString(0).equals(cdn)) {
+            s2 = i
+            break
+          }
+        }
+      )
+      breakable(
+        for (i <- tmpArray3.indices) {
+          if (tmpArray3(i).getString(0).equals(cdn)) {
+            s3 = i
+            break
+          }
+        }
+      )
+
+      tmpString += "%s, %s, %f, %s, %f, %s, %f\n".format(cdn,
+        "PC端", {
+          if (s1 >= 0) tmpArray1(s1).getDouble(1)
+          else 0.0
+        },
+        "Android端", {
+          if (s2 >= 0) tmpArray2(s2).getDouble(1)
+          else 0.0
+        },
+        "iOS端", {
+          if (s3 >= 0) tmpArray3(s3).getDouble(1)
+          else 0.0
+        })
       htmlRows3 +=
         """
           |<tr>
@@ -336,7 +381,19 @@ object DailyReport {
           |  <td>%s</td>
           |  <td>%f</td>
           |</tr>
-        """.stripMargin.format(tmpArray1(i).getString(0), "PC端", tmpArray1(i).getDouble(1), "Android端", tmpArray2(i).getDouble(1), "iOS端", tmpArray3(i).getDouble(1))
+        """.stripMargin.format(cdn,
+          "PC端", {
+            if (s1 >= 0) tmpArray1(s1).getDouble(1)
+            else 0.0
+          },
+          "Android端", {
+            if (s2 >= 0) tmpArray2(s2).getDouble(1)
+            else 0.0
+          },
+          "iOS端", {
+            if (s3 >= 0) tmpArray3(s3).getDouble(1)
+            else 0.0
+          })
     }
     //    attachmentStringsToSend.update("[%s]卡顿率-各家分平台卡顿率".format(yesterday), tmpString)
 
@@ -360,7 +417,6 @@ object DailyReport {
         |    (SELECT cdn, v5 FROM quanmin_first WHERE platform=2) t
         |GROUP BY cdn ORDER BY instr('网宿百度腾讯阿里七牛云帆金山未定义', cdn)
       """.stripMargin).collect()
-    val cdns = Array("网宿", "百度", "腾讯", "阿里", "七牛", "云帆", "金山", "未定义")
     for (cdn <- cdns) {
       var s1, s2, s3 = -1
       breakable(
@@ -430,7 +486,7 @@ object DailyReport {
 
     htmlTemplateString = htmlTemplateString.format(totalRatio, htmlRows1, htmlRows2, htmlRows3, htmlRows4)
 
-    val email = new HtmlMultiPartEmail()
+    val email = new HtmlEmail()
     email.setCharset("UTF-8")
     email.setHostName("smtp.sendcloud.net")
     email.setAuthentication("postmaster@apm.mail.qiniu.com", "gW6q6lbbiwFXEoyg")
@@ -441,7 +497,8 @@ object DailyReport {
     email.addTo("yangbo@qmtv.com")
     email.addCc("zhangyunlong@qmtv.com")
     email.setSubject("[%s][全民TV]CDN质量数据日报".format(yesterday))
-    email.setHtml(htmlTemplateString)
+    email.setHtmlMsg(htmlTemplateString)
+    email.embed(new URLDataSource(new URL("http://5vlkd7un.bq.cloudappl.com/v1/get_screenshot?url=http://twnagkng.bq.cloudappl.com/assets/no-react/?params={%22queryFormat%22:{%22database%22:%22pili/realtime%22,%22timeGranularity%22:10000,%22queries%22:[{%22normName%22:%22lag%22,%22valueOperator%22:%22sum%22,%22valueNames%22:[%22number%22,%22total%22],%22dimensionNames%22:[%22cdn%22],%22filters%22:[{%22name%22:%22country%22,%22value%22:%22中国%22,%22type%22:1,%22operator%22:%22=%22}]}]},%22preloadTimeInterval%22:60000,%22updateDataTimeInterval%22:10000,%22displayTimeInterval%22:3600000}")), "1.png", "c1")
     attachmentStringsToSend.foreach[Unit]((test: (String, String)) => {
       val fileHandler = new File("/tmp/%s.csv".format(test._1))
       val fileWriter = new FileOutputStream(fileHandler)
