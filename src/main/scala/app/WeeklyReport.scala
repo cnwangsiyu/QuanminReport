@@ -3,7 +3,8 @@ package app
 import java.io.{File, FileOutputStream}
 import java.text.SimpleDateFormat
 import java.util.Calendar
-import mail.HtmlMultiPartEmail
+
+import org.apache.commons.mail.HtmlEmail
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.hive.HiveContext
 import org.apache.spark.{SparkConf, SparkContext}
@@ -571,7 +572,7 @@ object WeeklyReport {
     })
     attachmentStringsToSend.update("各家CDN卡顿率-省份最差top5排名", tmpString)
 
-    val email = new HtmlMultiPartEmail()
+    val email = new HtmlEmail()
     email.setCharset("UTF-8")
     email.setHostName("smtp.sendcloud.net")
     email.setAuthentication("postmaster@apm.mail.qiniu.com", "gW6q6lbbiwFXEoyg")
@@ -582,7 +583,7 @@ object WeeklyReport {
     email.addTo("yangbo@qmtv.com")
     email.addCc("zhangyunlong@qmtv.com")
     email.setSubject("周报数据（%s）".format(dateString))
-    email.setHtml(htmlTemplateString.format(htmlRows: _*))
+    email.setHtmlMsg(htmlTemplateString.format(htmlRows: _*))
     attachmentStringsToSend.foreach[Unit]((test: (String, String)) => {
       val fileHandler = new File("/tmp/%s.csv".format(test._1))
       val fileWriter = new FileOutputStream(fileHandler)
