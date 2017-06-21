@@ -64,7 +64,7 @@
         <dependency>
             <groupId>com.qiniu</groupId>
             <artifactId>qiniu-pandora-sdk</artifactId>
-            <version>1.0</version>
+            <version>1.2</version>
         </dependency>
     </dependencies>
 </project>

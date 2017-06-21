@@ -30,7 +30,7 @@ class MyOrAgg extends UserDefinedAggregateFunction {
     buffer1(0) = myOr(buffer1.getInt(0), buffer2.getInt(0))
   }
 
-  override def evaluate(buffer: Row): Unit = {
+  override def evaluate(buffer: Row): Any = {
     buffer.getInt(0)
   }
 
